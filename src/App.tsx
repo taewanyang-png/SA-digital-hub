@@ -73,14 +73,14 @@ const Navbar = ({ isAdmin, onToggleAdmin, userType }: { isAdmin: boolean; onTogg
 
 const SafeImage = ({ src, alt, className, referrerPolicy }: { src: string; alt: string; className?: string; referrerPolicy?: React.HTMLAttributeReferrerPolicy }) => (
   <img 
-    src={src || 'http://googleusercontent.com/image_collection/image_retrieval/8271124991101079782'} 
+    src={src || 'https://images.unsplash.com/photo-1544923246-77307dd654ca?auto=format&fit=crop&q=80&w=1200'} 
     alt={alt}
     className={`${className} object-cover`}
-    style={{ objectPosition: 'center', imageRendering: 'pixelated' }}
-    referrerPolicy={referrerPolicy}
+    style={{ objectPosition: 'center', imageRendering: 'auto' }}
+    referrerPolicy="no-referrer"
     loading="eager"
     onError={(e) => {
-      (e.currentTarget as HTMLImageElement).src = 'http://googleusercontent.com/image_collection/image_retrieval/8271124991101079782';
+      (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544923246-77307dd654ca?auto=format&fit=crop&q=80&w=1200';
     }}
   />
 );
@@ -90,18 +90,19 @@ const Hero = () => (
     className="relative h-screen flex flex-col justify-center items-center overflow-hidden"
     /* --- MANUAL IMAGE SWAP --- */
     style={{ 
-      backgroundImage: "url('http://googleusercontent.com/image_collection/image_retrieval/8271124991101079782')", 
+      backgroundImage: "url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=1920')", 
       backgroundSize: 'cover', 
       backgroundPosition: 'center',
-      imageRendering: 'pixelated'
+      imageRendering: 'auto'
     }}
   >
     {/* Explicit image preloader for Hero section */}
     <img 
-      src="http://googleusercontent.com/image_collection/image_retrieval/8271124991101079782" 
+      src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=1920" 
       className="hidden" 
       loading="eager" 
       alt="Preload" 
+      referrerPolicy="no-referrer"
     />
 
     {/* Optional Overlay for better text legibility */}
@@ -205,15 +206,14 @@ export default function App() {
   // Force image caching and pre-rendering
   useEffect(() => {
     const criticalImages = [
-      'http://googleusercontent.com/image_collection/image_retrieval/8271124991101079782', // Hero
-      'http://googleusercontent.com/image_collection/image_retrieval/3721352222650854747', // SALT
-      'http://googleusercontent.com/image_collection/image_retrieval/5221847308827951878', // Trauma
-      'http://googleusercontent.com/image_collection/image_retrieval/7622242832858546891', // CMS
-      'http://googleusercontent.com/image_collection/image_retrieval/16812338518979774969', // Archive
-      'http://googleusercontent.com/image_collection/image_retrieval/2063697456482634732', // Travel
-      'http://googleusercontent.com/image_collection/image_retrieval/2383520574522617965', // Ukarumpa
-      'http://googleusercontent.com/image_collection/image_retrieval/14946839958299032832', // Resource
-      'http://googleusercontent.com/image_collection/image_retrieval/7721195682879074194'  // Accent
+      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=1920', // Hero
+      'https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&q=80&w=800',  // Healing/Care
+      'https://images.unsplash.com/photo-1516733725897-1aa73b87c8e8?auto=format&fit=crop&q=80&w=800',  // Culture/CMS
+      'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=800',  // Literacy/SALT
+      'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&q=80&w=800',  // Scripture
+      'https://images.unsplash.com/photo-1454165833767-02746d746734?auto=format&fit=crop&q=80&w=800',  // Report/Professional
+      'https://images.unsplash.com/photo-1523712999610-f77fbcfc3843?auto=format&fit=crop&q=80&w=800',  // Nature
+      'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&q=80&w=800'   // Formal/Document
     ];
     
     criticalImages.forEach(url => {
@@ -246,6 +246,29 @@ export default function App() {
         parsedData.footer.email = INITIAL_DATA.footer.email;
         parsedData.footer.phone = INITIAL_DATA.footer.phone;
       }
+      
+      // Migration for broken or generic images
+      parsedData.projects.forEach((prj: any) => {
+        const matchingPrj = INITIAL_DATA.projects.find(p => p.id === prj.id);
+        if (matchingPrj && (
+          prj.image.includes('googleusercontent') || 
+          prj.image.includes('photo-1527613426441-4da17471b66d') ||
+          prj.image.includes('photo-1544923246-77307dd654ca')
+        )) {
+          prj.image = matchingPrj.image;
+        }
+      });
+      parsedData.reports.forEach((rep: any) => {
+        const matchingRep = INITIAL_DATA.reports.find(r => r.title === rep.title);
+        if (matchingRep && (
+          rep.image.includes('googleusercontent') || 
+          rep.image.includes('photo-1526721940322-1457342081ff') || 
+          rep.image.includes('photo-1454165833767-02746d746734') ||
+          rep.image.includes('photo-1516245834210-c4c142787335')
+        )) {
+          rep.image = matchingRep.image;
+        }
+      });
       // Merge with specific localStorage keys if they exist
       if (savedCoAdmins) parsedData.authorizedCoAdmins = JSON.parse(savedCoAdmins);
       if (savedPending) parsedData.pendingRequests = JSON.parse(savedPending);
@@ -1154,8 +1177,8 @@ export default function App() {
           {/* Ukarumpa Base Background Overlay */}
           <div className="absolute inset-0 z-0">
             <SafeImage 
-              src="http://googleusercontent.com/image_collection/image_retrieval/2383520574522617965"
-              alt="Ukarumpa Base"
+              src="https://images.unsplash.com/photo-1523712999610-f77fbcfc3843?auto=format&fit=crop&q=80&w=1920"
+              alt="PNG Nature"
               className="w-full h-full object-cover opacity-10"
               referrerPolicy="no-referrer"
             />
