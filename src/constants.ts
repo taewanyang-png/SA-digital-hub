@@ -118,8 +118,8 @@ export const INITIAL_DATA: AppData = {
     { id: 'v3', title: 'Trauma Healing Stories', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', thumbnail: 'http://googleusercontent.com/image_collection/image_retrieval/5221847308827951878' }
   ],
   footer: {
-    email: 'info@gbt.or.kr',
-    phone: '+675 7000 0000',
+    email: 'sa-manager@sil.org',
+    phone: '+675 7217-0330 ext. 4071',
     location: 'Ukarumpa, Eastern Highlands Province, Papua New Guinea'
   },
   authorizedCoAdmins: [],

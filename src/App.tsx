@@ -241,6 +241,11 @@ export default function App() {
 
     if (saved) {
       const parsedData = JSON.parse(saved);
+      // Force update stale footer defaults if they match previous placeholders
+      if (parsedData.footer.email === 'info@gbt.or.kr' || parsedData.footer.phone === '+675 7000 0000') {
+        parsedData.footer.email = INITIAL_DATA.footer.email;
+        parsedData.footer.phone = INITIAL_DATA.footer.phone;
+      }
       // Merge with specific localStorage keys if they exist
       if (savedCoAdmins) parsedData.authorizedCoAdmins = JSON.parse(savedCoAdmins);
       if (savedPending) parsedData.pendingRequests = JSON.parse(savedPending);
@@ -706,7 +711,7 @@ export default function App() {
               <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-emerald/5 h-full">
                 <div className="flex justify-between items-center mb-8">
                   <h4 className="font-serif text-2xl font-bold text-emerald-dark">
-                    {viewDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+                    {viewDate.toLocaleString('en-GB', { month: 'long', year: 'numeric' })}
                   </h4>
                   <div className="flex gap-2">
                     <button 
@@ -725,7 +730,7 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-7 gap-1 mb-2">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
                     <div key={day} className="text-center text-[10px] uppercase font-bold text-emerald/30 tracking-widest pb-4">
                       {day}
                     </div>
@@ -736,7 +741,8 @@ export default function App() {
                   {(() => {
                     const year = viewDate.getFullYear();
                     const month = viewDate.getMonth();
-                    const firstDay = new Date(year, month, 1).getDay();
+                    const firstDayRaw = new Date(year, month, 1).getDay();
+                    const firstDay = (firstDayRaw + 6) % 7; // Monday-first: 0=Mon, 6=Sun
                     const daysInMonth = new Date(year, month + 1, 0).getDate();
                     const prevMonthDays = new Date(year, month, 0).getDate();
                     
@@ -834,7 +840,7 @@ export default function App() {
                              }`}>
                                 {event.type}
                              </div>
-                             <p className="text-[10px] font-bold text-emerald/40 font-mono">{event.date}</p>
+                             <p className="text-[10px] font-bold text-emerald/40 font-mono">{new Date(event.date).toLocaleDateString('en-GB')}</p>
                           </div>
                           <h6 className="font-bold text-emerald-dark text-base mb-2 group-hover:text-emerald transition-colors">{event.title}</h6>
                           <p className="text-xs text-emerald-dark/40 line-clamp-2 leading-relaxed">{event.description}</p>
@@ -980,7 +986,9 @@ export default function App() {
                             className="bg-sand/40 text-[10px] font-bold px-2 py-1 rounded focus:outline-none border border-emerald/5"
                           />
                         ) : (
-                          <span className="text-xs text-emerald-dark/60 font-medium">{item.checkoutDate || 'Not Tracked'}</span>
+                          <span className="text-xs text-emerald-dark/60 font-medium">
+                            {item.checkoutDate ? new Date(item.checkoutDate).toLocaleDateString('en-GB') : 'Not Tracked'}
+                          </span>
                         )}
                       </td>
                       <td className="py-5">
@@ -992,7 +1000,9 @@ export default function App() {
                             className="bg-sand/40 text-[10px] font-bold px-2 py-1 rounded focus:outline-none border border-emerald/5"
                           />
                         ) : (
-                          <span className="text-xs text-orange-600/80 font-bold">{item.expectedReturnDate || '--'}</span>
+                          <span className="text-xs text-orange-600/80 font-bold">
+                            {item.expectedReturnDate ? new Date(item.expectedReturnDate).toLocaleDateString('en-GB') : '--'}
+                          </span>
                         )}
                       </td>
                       {isAdmin && (
@@ -1833,7 +1843,7 @@ export default function App() {
                 <div className="relative z-10">
                   <span className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-bold uppercase tracking-widest mb-4 inline-block">{selectedEvent.type}</span>
                   <h3 className="font-serif text-3xl font-bold mb-2">{selectedEvent.title}</h3>
-                  <p className="text-sand/70 text-sm font-mono">{selectedEvent.date}</p>
+                  <p className="text-sand/70 text-sm font-mono">{new Date(selectedEvent.date).toLocaleDateString('en-GB')}</p>
                 </div>
               </div>
               <div className="p-10">
