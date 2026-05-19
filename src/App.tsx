@@ -76,8 +76,9 @@ const SafeImage = ({ src, alt, className, referrerPolicy }: { src: string; alt: 
     src={src || 'http://googleusercontent.com/image_collection/image_retrieval/8271124991101079782'} 
     alt={alt}
     className={`${className} object-cover`}
-    style={{ objectPosition: 'center', backgroundColor: '#064e3b', imageRendering: 'auto' }}
+    style={{ objectPosition: 'center', imageRendering: 'pixelated' }}
     referrerPolicy={referrerPolicy}
+    loading="eager"
     onError={(e) => {
       (e.currentTarget as HTMLImageElement).src = 'http://googleusercontent.com/image_collection/image_retrieval/8271124991101079782';
     }}
@@ -92,10 +93,17 @@ const Hero = () => (
       backgroundImage: "url('http://googleusercontent.com/image_collection/image_retrieval/8271124991101079782')", 
       backgroundSize: 'cover', 
       backgroundPosition: 'center',
-      backgroundColor: '#064e3b',
-      imageRendering: 'auto'
+      imageRendering: 'pixelated'
     }}
   >
+    {/* Explicit image preloader for Hero section */}
+    <img 
+      src="http://googleusercontent.com/image_collection/image_retrieval/8271124991101079782" 
+      className="hidden" 
+      loading="eager" 
+      alt="Preload" 
+    />
+
     {/* Optional Overlay for better text legibility */}
     <div className="absolute inset-0 bg-[#042f2e]/40 backdrop-blur-[1px] z-0"></div>
     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-sand/20 z-0"></div>
@@ -194,6 +202,26 @@ export default function App() {
     howToSupport: ''
   });
 
+  // Force image caching and pre-rendering
+  useEffect(() => {
+    const criticalImages = [
+      'http://googleusercontent.com/image_collection/image_retrieval/8271124991101079782', // Hero
+      'http://googleusercontent.com/image_collection/image_retrieval/3721352222650854747', // SALT
+      'http://googleusercontent.com/image_collection/image_retrieval/5221847308827951878', // Trauma
+      'http://googleusercontent.com/image_collection/image_retrieval/7622242832858546891', // CMS
+      'http://googleusercontent.com/image_collection/image_retrieval/16812338518979774969', // Archive
+      'http://googleusercontent.com/image_collection/image_retrieval/2063697456482634732', // Travel
+      'http://googleusercontent.com/image_collection/image_retrieval/2383520574522617965', // Ukarumpa
+      'http://googleusercontent.com/image_collection/image_retrieval/14946839958299032832', // Resource
+      'http://googleusercontent.com/image_collection/image_retrieval/7721195682879074194'  // Accent
+    ];
+    
+    criticalImages.forEach(url => {
+      const img = new Image();
+      img.src = url;
+    });
+  }, []);
+
   const ROOT_ADMIN = 'taewan_yang@gbt.or.kr';
 
   const getUserType = () => {
@@ -208,9 +236,17 @@ export default function App() {
   useEffect(() => {
     const saved = localStorage.getItem('scripture_hub_data');
     const savedUser = localStorage.getItem('scripture_hub_user');
+    const savedPending = localStorage.getItem('pendingAdminRequests');
+    const savedCoAdmins = localStorage.getItem('coAdmins');
+
     if (saved) {
-      setData(JSON.parse(saved));
+      const parsedData = JSON.parse(saved);
+      // Merge with specific localStorage keys if they exist
+      if (savedCoAdmins) parsedData.authorizedCoAdmins = JSON.parse(savedCoAdmins);
+      if (savedPending) parsedData.pendingRequests = JSON.parse(savedPending);
+      setData(parsedData);
     }
+    
     if (savedUser) {
       setCurrentUserEmail(savedUser);
       setIsAdmin(true);
@@ -220,6 +256,8 @@ export default function App() {
   // Sync to localStorage on update
   useEffect(() => {
     localStorage.setItem('scripture_hub_data', JSON.stringify(data));
+    localStorage.setItem('pendingAdminRequests', JSON.stringify(data.pendingRequests));
+    localStorage.setItem('coAdmins', JSON.stringify(data.authorizedCoAdmins));
   }, [data]);
 
   const handleAdminToggle = () => {
@@ -233,30 +271,44 @@ export default function App() {
   };
 
   const handleLogin = () => {
-    if (emailInput === ROOT_ADMIN || data.authorizedCoAdmins.includes(emailInput)) {
+    const coAdmins = JSON.parse(localStorage.getItem('coAdmins') || '[]');
+    if (emailInput === ROOT_ADMIN || coAdmins.includes(emailInput) || data.authorizedCoAdmins.includes(emailInput)) {
       setCurrentUserEmail(emailInput);
       setIsAdmin(true);
       setShowAdminLogin(false);
       localStorage.setItem('scripture_hub_user', emailInput);
+      setManagerStatus(`Logged in as ${emailInput === ROOT_ADMIN ? 'Root Admin' : 'Co-Admin'}`);
     } else {
-      // Logic for non-admins will be handled in the login modal (Request Access)
+      setManagerStatus('Access Denied: Email not in authorized list.');
     }
   };
 
+  const [managerStatus, setManagerStatus] = useState<string | null>(null);
+  const [showAdminManagement, setShowAdminManagement] = useState(false);
+
   const handleRequestAccess = () => {
     if (!emailInput) return;
+    
+    // Check if already pending
+    if (data.pendingRequests.some(r => r.email === emailInput)) {
+      setManagerStatus('Request already pending approval.');
+      return;
+    }
+
     const newRequest: AdminRequest = {
       id: Math.random().toString(36).substr(2, 9),
       email: emailInput,
       timestamp: new Date().toLocaleString()
     };
+
+    const updatedPending = [...data.pendingRequests, newRequest];
     setData(prev => ({
       ...prev,
-      pendingRequests: [...prev.pendingRequests, newRequest]
+      pendingRequests: updatedPending
     }));
-    alert('Access request submitted to Root Admin.');
+    
+    setManagerStatus('Admin request sent to Root for approval.');
     setEmailInput('');
-    setShowAdminLogin(false);
   };
 
   const approveRequest = (request: AdminRequest) => {
@@ -474,6 +526,10 @@ export default function App() {
                 className="group relative flex flex-col"
               >
                 <div className="aspect-video rounded-[2.5rem] overflow-hidden bg-emerald-dark/5 shadow-2xl relative border border-emerald/5">
+                  {/* Thumbnail background for slow internet persistence */}
+                  <div className="absolute inset-0 z-0">
+                    <SafeImage src={video.thumbnail} alt={video.title} className="w-full h-full object-cover opacity-50" />
+                  </div>
                   {showVideoAdmin ? (
                     <div className="absolute inset-0 bg-sand/95 backdrop-blur-sm z-20 p-6 flex flex-col justify-center space-y-4">
                       <input 
@@ -1162,65 +1218,6 @@ export default function App() {
         </footer>
       </main>
 
-      {/* FOOTER ADMIN MODAL */}
-      <AnimatePresence>
-        {showFooterAdmin && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div 
-               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-               onClick={() => setShowFooterAdmin(false)}
-               className="absolute inset-0 bg-emerald-dark/60 backdrop-blur-md"
-            />
-            <motion.div 
-               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-               className="relative bg-white w-full max-w-lg rounded-[3rem] p-10 shadow-2xl border border-emerald/10"
-            >
-              <h2 className="font-serif text-3xl font-bold text-emerald-dark mb-8">Edit Footer Info</h2>
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2">Email Address</label>
-                  <input 
-                    value={footerForm.email}
-                    onChange={(e) => setFooterForm({...footerForm, email: e.target.value})}
-                    className="w-full bg-sand/50 border border-emerald/10 px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald/20 font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2">Phone Number</label>
-                  <input 
-                    value={footerForm.phone}
-                    onChange={(e) => setFooterForm({...footerForm, phone: e.target.value})}
-                    className="w-full bg-sand/50 border border-emerald/10 px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald/20 font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2">Location/Address</label>
-                  <textarea 
-                    value={footerForm.location}
-                    onChange={(e) => setFooterForm({...footerForm, location: e.target.value})}
-                    className="w-full bg-sand/50 border border-emerald/10 px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald/20 font-bold h-24"
-                  />
-                </div>
-              </div>
-              <div className="mt-10 flex gap-4">
-                <button 
-                  onClick={updateFooter}
-                  className="flex-1 bg-emerald text-sand py-4 rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-emerald-light transition-all"
-                >
-                  Save Changes
-                </button>
-                <button 
-                  onClick={() => setShowFooterAdmin(false)}
-                  className="px-8 bg-emerald/5 text-emerald font-bold rounded-2xl uppercase tracking-widest text-[10px]"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* --- Modals Ecosystem --- */}
 
       {/* Project Details / Edit Modal */}
@@ -1705,6 +1702,19 @@ export default function App() {
                 <p className="text-emerald/60 text-sm mt-2">Enter your authorized email to continue.</p>
               </div>
               <div className="space-y-4">
+                {managerStatus && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-xl text-center text-xs font-bold uppercase tracking-widest ${
+                      managerStatus.includes('Denied') || managerStatus.includes('already') 
+                        ? 'bg-red-50 text-red-600 border border-red-100' 
+                        : 'bg-emerald/5 text-emerald border border-emerald/10'
+                    }`}
+                  >
+                    {managerStatus}
+                  </motion.div>
+                )}
                 <div>
                   <label className="block text-[10px] uppercase font-bold text-emerald/40 mb-2 tracking-[0.2em]">Authorized Email</label>
                   <div className="relative">
@@ -1902,7 +1912,126 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Footer Edit Modal */}
+      {/* Admin Request Management Toggle (Root Only) */}
+      <AnimatePresence>
+        {isAdmin && userType === 'Root' && (
+          <div className="fixed bottom-6 right-6 z-50">
+            <button 
+              onClick={() => setShowAdminManagement(true)}
+              className="w-16 h-16 bg-emerald text-sand rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform group relative"
+            >
+              <Users size={24} />
+              {data.pendingRequests.length > 0 && (
+                <div className="absolute -top-1 -right-1 bg-red-500 text-[10px] w-6 h-6 rounded-full flex items-center justify-center border-2 border-sand font-bold">
+                  {data.pendingRequests.length}
+                </div>
+              )}
+              <span className="absolute right-20 bg-emerald-dark text-sand px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                Admin Management
+              </span>
+            </button>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showAdminManagement && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-6">
+            <div className="absolute inset-0 bg-emerald-dark/60 backdrop-blur-md" onClick={() => setShowAdminManagement(false)}></div>
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-sand p-10 rounded-[3rem] max-w-2xl w-full relative z-10 shadow-3xl border border-emerald/10"
+            >
+              <div className="flex justify-between items-center mb-8">
+                <div>
+                  <h3 className="font-serif text-3xl font-bold text-emerald-dark">Admin Request Management</h3>
+                  <p className="text-emerald/60 text-sm mt-1">Review and approve access for department staff.</p>
+                </div>
+                <button 
+                  onClick={() => setShowAdminManagement(false)}
+                  className="w-12 h-12 rounded-full bg-emerald/5 flex items-center justify-center text-emerald hover:bg-emerald/10 transition-all"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-8">
+                <div>
+                  <h4 className="text-[10px] uppercase font-bold text-emerald/40 tracking-[0.2em] mb-4 flex items-center gap-2">
+                    <div className="w-4 h-[1px] bg-emerald/20"></div> Pending Requests ({data.pendingRequests.length})
+                  </h4>
+                  <div className="space-y-3 max-h-60 overflow-y-auto pr-2 no-scrollbar">
+                    {data.pendingRequests.length > 0 ? (
+                      data.pendingRequests.map((req) => (
+                        <div key={req.id} className="bg-white p-5 rounded-2xl border border-emerald/5 flex items-center justify-between group">
+                          <div>
+                            <p className="font-bold text-emerald-dark">{req.email}</p>
+                            <p className="text-[10px] text-emerald/40 font-mono">{req.timestamp}</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => approveRequest(req)}
+                              className="px-4 py-2 bg-emerald text-sand rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-light transition-all"
+                            >
+                              Accept
+                            </button>
+                            <button 
+                              onClick={() => deleteRequest(req.id)}
+                              className="px-4 py-2 bg-red-100 text-red-600 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-10 bg-emerald/5 rounded-2xl border border-dashed border-emerald/10">
+                        <p className="text-sm italic text-emerald/30 font-serif">No pending requests at this time.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-[10px] uppercase font-bold text-emerald/40 tracking-[0.2em] mb-4 flex items-center gap-2">
+                    <div className="w-4 h-[1px] bg-emerald/20"></div> Authorized Co-Admins ({data.authorizedCoAdmins.length})
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {data.authorizedCoAdmins.map((email) => (
+                      <div key={email} className="bg-emerald/10 px-4 py-2 rounded-xl flex items-center gap-3">
+                        <span className="text-xs font-bold text-emerald">{email}</span>
+                        <button 
+                          onClick={() => {
+                            setData(prev => ({
+                              ...prev,
+                              authorizedCoAdmins: prev.authorizedCoAdmins.filter(e => e !== email)
+                            }));
+                          }}
+                          className="text-emerald/40 hover:text-red-500 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    {data.authorizedCoAdmins.length === 0 && (
+                      <p className="text-xs italic text-emerald/30">No co-admins authorized yet.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-10 pt-6 border-t border-emerald/5 text-center">
+                <p className="text-[10px] text-emerald/30 font-medium">
+                  Root Admin Status: {ROOT_ADMIN}
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showFooterAdmin && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
