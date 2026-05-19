@@ -1,0 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Great+Vibes&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-cursive: "Great Vibes", cursive;
+  
+  --color-sand: #FDFBF7;
+  --color-emerald: #064E3B;
+  --color-emerald-light: #065F46;
+  --color-emerald-dark: #022C22;
+}
+
+@layer base {
+  body {
+    @apply bg-sand text-emerald-dark font-sans;
+  }
+}
+

@@ -1,0 +1,8 @@
+{
+  "name": "Scripture Access Digital Hub",
+  "description": "A premium digital hub for Scripture Access in Papua New Guinea, featuring interactive inventory tracking, project management, and live funding updates.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
