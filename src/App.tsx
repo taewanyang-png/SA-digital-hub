@@ -157,9 +157,10 @@ const SafeImage = ({ src, alt, className }: { src: string; alt: string; classNam
     loading="eager"
     onError={(e) => {
       const target = e.currentTarget as HTMLImageElement;
-      if (!target.src.includes('photo-1504052434569-7090ec98a3c0')) {
-        target.src = 'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120';
+      if (target.src.startsWith('data:') || target.src.includes('photo-1504052434569-7090ec98a3c0')) {
+        return;
       }
+      target.src = 'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120';
     }}
   />
 );
@@ -508,9 +509,25 @@ export default function App() {
 
             unsubAdminsList = onSnapshot(collection(db, 'admins'), (snap) => {
               const emails: string[] = [];
-              snap.forEach(doc => {
-                const d = doc.data();
-                if (d.email) emails.push(d.email.toLowerCase());
+              snap.forEach(async (docSnap) => {
+                const d = docSnap.data();
+                if (d.email) {
+                  const lowerEmail = d.email.toLowerCase();
+                  emails.push(lowerEmail);
+                  
+                  // Migrating any legacy direct_ identifiers to email-indexed documents so security rules pass
+                  if (docSnap.id.startsWith('direct_') && rootMatch) {
+                    try {
+                      await setDoc(doc(db, 'admins', lowerEmail), {
+                        email: lowerEmail,
+                        approved: true,
+                        approvedAt: d.approvedAt || new Date().toISOString()
+                      });
+                    } catch (migrationErr) {
+                      console.error("Co-Admin migration to email ID failed:", migrationErr);
+                    }
+                  }
+                }
               });
               setData(prev => ({ ...prev, authorizedCoAdmins: emails }));
             });
@@ -751,8 +768,7 @@ export default function App() {
     const targetEmail = email.toLowerCase();
     
     try {
-      const adminId = 'direct_' + Math.random().toString(36).substr(2, 9);
-      await setDoc(doc(db, 'admins', adminId), {
+      await setDoc(doc(db, 'admins', targetEmail), {
         email: targetEmail,
         approved: true,
         approvedAt: new Date().toISOString()
