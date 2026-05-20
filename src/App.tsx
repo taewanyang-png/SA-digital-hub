@@ -153,7 +153,7 @@ const SafeImage = ({ src, alt, className }: { src: string; alt: string; classNam
     alt={alt}
     className={`${className} object-cover bg-[#e8dec9]/30`}
     style={{ objectPosition: 'center', imageRendering: 'auto' }}
-    referrerPolicy="strict-origin-when-cross-origin"
+    referrerPolicy="no-referrer"
     loading="eager"
     onError={(e) => {
       const target = e.currentTarget as HTMLImageElement;
@@ -426,6 +426,7 @@ export default function App() {
   const [projectEditForm, setProjectEditForm] = useState<Project | null>(null);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [reportEditForm, setReportEditForm] = useState<Report | null>(null);
   const [showReportFilesModal, setShowReportFilesModal] = useState(false);
   const [isAddingProject, setIsAddingProject] = useState(false);
   const [isAddingEvent, setIsAddingEvent] = useState(false);
@@ -490,6 +491,18 @@ export default function App() {
       setSaveSuccessMessage(null);
     }
   }, [showProjectModal, selectedProject]);
+
+  // Synchronize dynamic report staging edits with local draft state
+  useEffect(() => {
+    if (showReportFilesModal && selectedReport) {
+      if (!reportEditForm || reportEditForm.id !== selectedReport.id) {
+        const liveReport = data.reports.find(r => r.id === selectedReport.id) || selectedReport;
+        setReportEditForm({ ...liveReport });
+      }
+    } else {
+      setReportEditForm(null);
+    }
+  }, [showReportFilesModal, selectedReport]);
 
   const ROOT_ADMIN = 'taewan_yang@gbt.or.kr';
 
@@ -1806,7 +1819,13 @@ export default function App() {
                       {isAdmin && (
                         <td className="py-5 text-right">
                           <button 
-                            onClick={() => setData(prev => ({ ...prev, equipment: prev.equipment.filter(e => e.id !== item.id) }))}
+                            onClick={async () => {
+                              try {
+                                await deleteDoc(doc(db, 'equipment', item.id));
+                              } catch (err) {
+                                handleFirestoreError(err, OperationType.DELETE, `equipment/${item.id}`);
+                              }
+                            }}
                             className="text-red-400 hover:text-red-600 transition-colors p-2 hover:bg-red-50 rounded-xl"
                             title="Remove Asset"
                           >
@@ -2122,15 +2141,25 @@ export default function App() {
                     {isAdmin && (
                       <label className="absolute inset-0 flex items-center justify-center bg-emerald-dark/40 opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
                         <div className="bg-sand text-emerald px-6 py-3 rounded-2xl flex items-center gap-3 shadow-2xl scale-95 hover:scale-100 transition-transform">
-                          <FileUp size={24} />
-                          <span className="text-xs font-black uppercase tracking-widest">Replace Illustration</span>
+                          {isUploading ? (
+                            <>
+                              <div className="animate-spin rounded-full h-5 w-5 border-2 border-emerald border-t-transparent"></div>
+                              <span className="text-xs font-black uppercase tracking-widest">Optimizing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <FileUp size={24} />
+                              <span className="text-xs font-black uppercase tracking-widest">Replace Illustration</span>
+                            </>
+                          )}
                         </div>
                         <input 
                           type="file" 
                           className="hidden" 
                           accept="image/*" 
+                          disabled={isUploading}
                           onChange={(e) => handleFileUpload(e, (base64) => {
-                            if (projectEditForm) setProjectEditForm({ ...projectEditForm, image: base64 });
+                            setProjectEditForm(prev => prev ? { ...prev, image: base64 } : null);
                           })} 
                         />
                       </label>
@@ -2189,38 +2218,40 @@ export default function App() {
                         />
                       </div>
                       
-                      {/* 최종 확인 및 적용 버튼 */}
+                      {/* Project Save and Cancel Buttons */}
                       <div className="pt-6 border-t border-emerald/10 grid grid-cols-2 gap-4">
                         <button 
+                          disabled={isUploading}
                           onClick={async () => {
+                            if (!projectEditForm) return;
+                            const targetId = projectEditForm.id;
+                            const finalForm = { ...projectEditForm };
+                            
+                            // 1. Immediately close the modal so there is zero modal hanging
+                            setShowProjectModal(false);
+                            setProjectEditForm(null);
+                            setSaveSuccessMessage(null);
+                            
+                            // 2. Perform the Firestore save asynchronously in the background
                             try {
-                              setSaveSuccessMessage("Applying changes safely to Firestore...");
-                              await updateProject(projectEditForm.id, projectEditForm);
-                              setSaveSuccessMessage("최종 저장 완료! 새로고침 후에도 유지됩니다.");
-                              setTimeout(() => {
-                                setSaveSuccessMessage(null);
-                                setShowProjectModal(false);
-                              }, 1800);
+                              await updateProject(targetId, finalForm);
                             } catch (err) {
-                              setSaveSuccessMessage("저장 실패. 네트워크 오류.");
+                              console.error("Failed to save project changes:", err);
+                              setManagerStatus("Sync failed. Check your connection to the PNG Hub.");
                             }
                           }}
-                          className="bg-emerald text-sand py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-emerald-light transition-all shadow-lg flex items-center justify-center gap-2"
+                          className={`bg-emerald text-sand py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] transition-all shadow-lg flex items-center justify-center gap-2 ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-emerald-light'}`}
                         >
-                          <Check size={16} /> 최종 확인 및 적용
+                          <Check size={16} /> Apply Changes
                         </button>
                         <button 
                           onClick={() => {
-                            const liveProject = data.projects.find(p => p.id === selectedProject.id) || selectedProject;
-                            setProjectEditForm({ ...liveProject });
-                            setSaveSuccessMessage("변경사항이 모두 취소되었습니다.");
-                            setTimeout(() => {
-                              setSaveSuccessMessage(null);
-                            }, 1500);
+                            setProjectEditForm(null);
+                            setShowProjectModal(false);
                           }}
                           className="bg-sand border border-emerald/20 text-emerald py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-emerald/5 transition-all flex items-center justify-center gap-2"
                         >
-                          <X size={16} /> 변경사항 취소
+                          <X size={16} /> Cancel Changes
                         </button>
                       </div>
                     </div>
@@ -2302,136 +2333,192 @@ export default function App() {
               initial={{ scale: 0.95, opacity: 0, y: 30 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 30 }}
-              className="bg-sand rounded-[3.5rem] overflow-hidden max-w-2xl w-full relative z-10 shadow-2xl flex flex-col max-h-[80vh]"
+              className="bg-sand rounded-[2.5rem] overflow-hidden max-w-4xl w-full relative z-10 shadow-2xl flex flex-col md:flex-row h-[90vh] max-h-[640px] md:h-[600px] min-h-0"
             >
-              <div className="p-10 border-b border-emerald/10 flex justify-between items-center bg-sand/50 backdrop-blur-sm sticky top-0 z-20 overflow-hidden">
-                <SafeImage 
-                  src={selectedReport.image} 
-                  alt={selectedReport.title} 
-                  className="absolute inset-0 w-full h-full object-cover opacity-5"
-                />
-                <div className="flex items-center gap-4 relative z-10">
-                  <div className="p-3 bg-emerald/10 rounded-2xl text-emerald relative">
-                    <FileText size={24} />
-                    {isAdmin && (
-                      <label className="absolute -bottom-2 -right-2 bg-white p-1.5 rounded-full shadow-md cursor-pointer hover:bg-emerald hover:text-sand transition-all">
-                        <ImageIcon size={12} />
-                        <input 
-                          type="file" 
-                          className="hidden" 
-                          accept="image/*" 
-                          onChange={(e) => handleFileUpload(e, (base64) => updateDoc(doc(db, 'reports', selectedReport.id), { image: base64 }))} 
-                        />
-                      </label>
-                    )}
-                  </div>
-                  <div>
-                    {isAdmin ? (
-                      <input 
-                        value={selectedReport.title}
-                        onChange={async (e) => {
-                          const newTitle = e.target.value;
-                          await updateDoc(doc(db, 'reports', selectedReport.id), { title: newTitle });
-                          setSelectedReport({ ...selectedReport, title: newTitle });
-                        }}
-                        className="font-serif text-3xl font-bold text-emerald-dark tracking-tight bg-emerald/5 border-b border-emerald/20 focus:outline-none"
-                      />
-                    ) : (
-                      <h3 className="font-serif text-3xl font-bold text-emerald-dark tracking-tight">{selectedReport.title}</h3>
-                    )}
-                    <p className="text-[10px] font-bold text-emerald/40 uppercase tracking-widest">{selectedReport.files?.length || 0} Documents Logged</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setShowReportFilesModal(false)}
-                  className="p-3 text-emerald/40 hover:text-emerald transition-colors relative z-10"
-                >
-                  <X size={28} />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-10 space-y-4">
-                {selectedReport.files && selectedReport.files.length > 0 ? (
-                  selectedReport.files.map((file, idx) => (
-                    <motion.div 
-                      key={file.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="group flex items-center justify-between p-5 bg-white rounded-2xl border border-emerald/5 hover:border-emerald/20 hover:shadow-lg transition-all"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-xl ${file.type === 'pdf' ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>
-                          <FileText size={20} />
-                        </div>
-                        <div>
-                          <p className="font-bold text-emerald-dark group-hover:text-emerald transition-colors">{file.name}</p>
-                          <p className="text-[10px] text-emerald/40 uppercase font-bold tracking-widest">{file.date} • {file.type.toUpperCase()}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="p-2 text-emerald/40 hover:text-emerald hover:bg-emerald/5 rounded-lg transition-all" title="View Source">
-                          <Eye size={18} />
-                        </button>
-                        <a 
-                          href="#" 
-                          onClick={(e) => { e.preventDefault(); alert(`Downloading ${file.name}...`); }}
-                          className="p-2 text-emerald/40 hover:text-emerald hover:bg-emerald/5 rounded-lg transition-all" 
-                          title="Download Document"
-                        >
-                          <Download size={18} />
-                        </a>
-                        {isAdmin && (
-                          <button 
-                            onClick={() => deleteFileFromReport(selectedReport.id, file.id)}
-                            className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+              {/* Left Column: Image with Hover Overlay Upload */}
+              <div className="w-full md:w-2/5 relative h-40 md:h-full shrink-0 group">
+                <div className="absolute inset-0">
+                  <SafeImage 
+                    src={reportEditForm ? reportEditForm.image : selectedReport.image} 
+                    alt={reportEditForm ? reportEditForm.title : selectedReport.title} 
+                    className="w-full h-full object-cover"
+                  />
+                  {isAdmin && (
+                    <label className="absolute inset-0 flex items-center justify-center bg-emerald-dark/40 opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                      <div className="bg-sand text-emerald px-6 py-3 rounded-2xl flex items-center gap-3 shadow-2xl scale-95 hover:scale-100 transition-transform">
+                        {isUploading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-emerald border-t-transparent"></div>
+                            <span className="text-xs font-black uppercase tracking-widest">Optimizing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FileUp size={24} />
+                            <span className="text-xs font-black uppercase tracking-widest">Replace Illustration</span>
+                          </>
                         )}
                       </div>
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="text-center py-20">
-                    <p className="text-emerald/20 font-serif text-xl italic">No documents available in this archive yet.</p>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*" 
+                        disabled={isUploading}
+                        onChange={(e) => handleFileUpload(e, (base64) => {
+                          setReportEditForm(prev => prev ? { ...prev, image: base64 } : null);
+                        })} 
+                      />
+                    </label>
+                  )}
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent to-sand md:hidden"></div>
+              </div>
+
+              {/* Right Column: Files & Content details */}
+              <div className="flex-grow md:h-full flex flex-col overflow-hidden p-6 md:p-10 relative min-h-0">
+                <button 
+                  onClick={() => setShowReportFilesModal(false)}
+                  className="absolute top-6 right-6 w-12 h-12 bg-emerald/10 rounded-full flex items-center justify-center text-emerald-dark hover:bg-emerald hover:text-sand transition-all z-20"
+                >
+                  <X size={24} />
+                </button>
+
+                <div className="mb-4 pr-12 shrink-0">
+                  <p className="text-[10px] font-bold text-emerald/40 uppercase tracking-widest mb-1">Report Archive</p>
+                  {isAdmin && reportEditForm ? (
+                    <input 
+                      value={reportEditForm.title}
+                      onChange={(e) => setReportEditForm(prev => prev ? { ...prev, title: e.target.value } : null)}
+                      className="font-serif text-2xl md:text-3xl font-bold text-emerald-dark tracking-tight bg-emerald/5 border-b border-emerald/20 focus:outline-none w-full py-1"
+                    />
+                  ) : (
+                    <h3 className="font-serif text-2xl md:text-3xl font-bold text-emerald-dark tracking-tight leading-tight">{selectedReport.title}</h3>
+                  )}
+                  <p className="text-[10px] font-bold text-emerald/40 uppercase tracking-widest mt-1">
+                    {(reportEditForm?.files || selectedReport.files)?.length || 0} Documents Logged
+                  </p>
+                </div>
+
+                <div className="flex-grow overflow-y-auto space-y-3 pr-1 min-h-0">
+                  {selectedReport.files && selectedReport.files.length > 0 ? (
+                    selectedReport.files.map((file, idx) => (
+                      <motion.div 
+                        key={file.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="group flex items-center justify-between p-3.5 bg-white rounded-2xl border border-emerald/5 hover:border-emerald/20 hover:shadow-lg transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2.5 rounded-xl ${file.type === 'pdf' ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>
+                            <FileText size={18} />
+                          </div>
+                          <div>
+                            <p className="font-bold text-emerald-dark text-sm group-hover:text-emerald transition-colors">{file.name}</p>
+                            <p className="text-[9px] text-emerald/40 uppercase font-bold tracking-widest">{file.date} • {file.type.toUpperCase()}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <button className="p-1.5 text-emerald/40 hover:text-emerald hover:bg-emerald/5 rounded-lg transition-all" title="View Source">
+                            <Eye size={16} />
+                          </button>
+                          <a 
+                            href="#" 
+                            onClick={(e) => { e.preventDefault(); alert(`Downloading ${file.name}...`); }}
+                            className="p-1.5 text-emerald/40 hover:text-emerald hover:bg-emerald/5 rounded-lg transition-all" 
+                            title="Download Document"
+                          >
+                            <Download size={16} />
+                          </a>
+                          {isAdmin && (
+                            <button 
+                              onClick={() => deleteFileFromReport(selectedReport.id, file.id)}
+                              className="p-1.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-emerald/20 font-serif text-base italic">No documents available.</p>
+                    </div>
+                  )}
+                </div>
+
+                {isAdmin && (
+                  <div className="mt-3 pt-3 border-t border-emerald/10 shrink-0">
+                    <div className="text-center border border-dashed border-emerald/20 p-3 rounded-2xl hover:border-emerald transition-all cursor-pointer group"
+                      onClick={() => {
+                        const name = prompt("Enter file name:");
+                        const type = confirm("Is it a PDF? (Cancel for DOCX)") ? 'pdf' : 'docx';
+                        if (name) addFileToReport(selectedReport.id, name, type);
+                      }}
+                    >
+                      <p className="text-[10px] font-bold text-emerald/40 tracking-widest uppercase group-hover:text-emerald transition-colors flex items-center justify-center gap-2">
+                        <FileUp size={14} /> Click to Upload Document (PDF/DOCX)
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {selectedReport.title === 'Project Reports' && !isAdmin && (
+                  <div className="mt-4 p-4 bg-emerald-dark text-sand rounded-xl shrink-0">
+                    <div className="flex justify-between items-center sm:flex-row flex-col gap-3">
+                      <div>
+                        <p className="text-[9px] uppercase font-bold tracking-[0.2em] text-emerald-light mb-1">Public Resource</p>
+                        <h6 className="font-serif text-sm font-bold">Standard Report Template</h6>
+                      </div>
+                      <button 
+                        onClick={() => alert('Downloading Word Template (.docx)...')}
+                        className="flex items-center gap-2 bg-emerald-light px-3.5 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-widest text-emerald-dark hover:bg-sand transition-all"
+                      >
+                        <Download size={12} /> Download Word Resource
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {isAdmin && reportEditForm && (
+                  <div className="mt-4 pt-4 border-t border-emerald/10 grid grid-cols-2 gap-4 shrink-0">
+                    <button 
+                      disabled={isUploading}
+                      onClick={async () => {
+                        if (!reportEditForm) return;
+                        const targetId = reportEditForm.id;
+                        const finalForm = { ...reportEditForm };
+                        
+                        // Close modal immediately
+                        setShowReportFilesModal(false);
+                        setReportEditForm(null);
+                        
+                        try {
+                          await updateDoc(doc(db, 'reports', targetId), {
+                            title: finalForm.title,
+                            image: finalForm.image
+                          });
+                          setSelectedReport(null);
+                        } catch (err) {
+                          console.error("Failed to update report:", err);
+                        }
+                      }}
+                      className={`bg-emerald text-sand py-3 rounded-2xl font-bold uppercase tracking-widest text-[10px] transition-all shadow-lg flex items-center justify-center gap-2 ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-emerald-light'}`}
+                    >
+                      <Check size={16} /> Apply Changes
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setReportEditForm(null);
+                        setShowReportFilesModal(false);
+                      }}
+                      className="bg-sand border border-emerald/20 text-emerald py-3 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-emerald/5 transition-all flex items-center justify-center gap-2"
+                    >
+                      <X size={16} /> Cancel Changes
+                    </button>
                   </div>
                 )}
               </div>
-
-              {isAdmin && (
-                <div className="p-8 bg-emerald/5 border-t border-emerald/10 flex items-center gap-4">
-                  <div className="flex-1 text-center border-2 border-dashed border-emerald/20 p-4 rounded-2xl hover:border-emerald transition-all cursor-pointer group"
-                    onClick={() => {
-                      const name = prompt("Enter file name:");
-                      const type = confirm("Is it a PDF? (Cancel for DOCX)") ? 'pdf' : 'docx';
-                      if (name) addFileToReport(selectedReport.id, name, type);
-                    }}
-                  >
-                    <p className="text-[10px] font-bold text-emerald/40 tracking-widest uppercase group-hover:text-emerald transition-colors flex items-center justify-center gap-2">
-                      <FileUp size={16} /> Click to Upload Document (PDF/DOCX)
-                    </p>
-                  </div>
-                </div>
-              )}
-              
-              {/* Public specific download for Project Reports DOCX */}
-              {selectedReport.title === 'Project Reports' && !isAdmin && (
-                <div className="p-8 bg-emerald-dark text-sand">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-[9px] uppercase font-bold tracking-[0.2em] text-emerald-light mb-1">Public Resource</p>
-                      <h6 className="font-serif text-lg font-bold">Standard Report Template</h6>
-                    </div>
-                    <button 
-                      onClick={() => alert('Downloading Word Template (.docx)...')}
-                      className="flex items-center gap-2 bg-emerald-light px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest text-emerald-dark hover:bg-sand transition-all"
-                    >
-                      <Download size={14} /> Download Word Resource
-                    </button>
-                  </div>
-                </div>
-              )}
             </motion.div>
           </div>
         )}
