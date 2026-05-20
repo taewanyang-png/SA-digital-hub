@@ -19,7 +19,7 @@ export const INITIAL_DATA: AppData = {
       description: "Restoring hope through foundational biblical trauma healing workshops and community level training across PNG provinces.",
       progress: 65,
       lastStatus: "Workshops completed in Lae; moving to Highlands next month.",
-      image: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=40&w=800",
+      image: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=12&w=350",
       howToSupport: "Your support enables us to provide training manuals and travel to remote villages. A gift of $50 provides a complete healing kit for one participant."
     },
     {
@@ -28,7 +28,7 @@ export const INITIAL_DATA: AppData = {
       description: "Deep engagement with the biblical narrative that respects and transforms traditional Melanesian cultural values.",
       progress: 40,
       lastStatus: "Curriculum adaptation for Sepik region in progress.",
-      image: "https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800",
+      image: "https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=12&w=350",
       howToSupport: "Support CMS by sponsoring a cultural workshop. $200 covers the logistics for a village-wide engagement session."
     },
     {
@@ -37,7 +37,7 @@ export const INITIAL_DATA: AppData = {
       description: "Scripture Application & Literacy Training for local-level pastors and church leaders in rural communities.",
       progress: 85,
       lastStatus: "35 leaders certified in the recent Highlands training cycle.",
-      image: "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=40&w=800",
+      image: "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=12&w=350",
       howToSupport: "SALT needs digital tools. Donating towards a tablet for a rural pastor allows them access to the full digital scripture library."
     },
     {
@@ -46,7 +46,7 @@ export const INITIAL_DATA: AppData = {
       description: "Providing a holistic understanding of the whole biblical narrative to establish a firm theological foundation.",
       progress: 30,
       lastStatus: "Resource printing for the 2024 cohort started.",
-      image: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=40&w=800",
+      image: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=12&w=350",
       howToSupport: "Funding the printing of 'Walk Through the Bible' posters helps visual learners understand the story of redemption. $500 prints 100 sets."
     }
   ],
@@ -61,76 +61,77 @@ export const INITIAL_DATA: AppData = {
       count: 2, 
       category: 'Internal', 
       date: '2024-05-10', 
-      image: 'https://images.unsplash.com/photo-1524338198850-e966434a81ed?auto=format&fit=crop&q=40&w=800',
+      image: 'https://images.unsplash.com/photo-1524338198850-e966434a81ed?auto=format&fit=crop&q=12&w=350',
       files: [
         { id: 'f1', name: 'Q1 Field Report.pdf', type: 'pdf', date: '2024-03-31' },
-        { id: 'f2', name: 'Mission_Resources_Template.docx', type: 'docx', date: '2024-05-10' }
-      ]
-    },
-    { 
-      id: '2', 
-      title: 'Impact Stories', 
-      count: 1, 
-      category: 'Community', 
-      date: '2024-04-15', 
-      image: 'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800',
-      files: [{ id: 'f3', name: 'Highlands_Testimony.pdf', type: 'pdf', date: '2024-04-15' }]
-    },
-    { 
-      id: '3', 
-      title: 'Archive Docs', 
-      count: 0, 
-      category: 'Legacy', 
-      date: '2023-11-01', 
-      image: 'https://images.unsplash.com/photo-1516062423079-7ca13cdc7f5a?auto=format&fit=crop&q=40&w=800',
-      files: []
-    },
-    { 
-      id: '4', 
-      title: 'Annual Reviews', 
-      count: 1, 
-      category: 'Strategic', 
-      date: '2024-01-20', 
-      image: 'https://images.unsplash.com/photo-1454165833767-027ffcb99645?auto=format&fit=crop&q=40&w=800',
-      files: [{ id: 'f4', name: '2023_Financial_Review.pdf', type: 'pdf', date: '2024-01-20' }]
-    },
-    { 
-      id: '5', 
-      title: 'Policy Documents', 
-      count: 1, 
-      category: 'Management', 
-      date: '2024-05-01', 
-      image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&q=40&w=800",
-      files: [{ id: 'f5', name: 'IT_Infrastructure_Protocol.pdf', type: 'pdf', date: '2024-05-01' }]
-    },
-    { 
-      id: '6', 
-      title: 'Resources', 
-      count: 2, 
-      category: 'Educational', 
-      date: '2024-05-18', 
-      image: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=40&w=800',
-      files: [
-        { id: 'f10', name: 'Literacy_Manual_v1.docx', type: 'docx', date: '2024-05-18' },
-        { id: 'f11', name: 'PNG_Ministry_Framework.pdf', type: 'pdf', date: '2024-05-18' }
-      ]
-    }
-  ],
-  schedule: [
-    { id: 's1', title: 'Highlands Trauma Workshop', date: '2024-06-15', type: 'workshop', description: 'Intensive 3-day workshop for community leaders.', participants: ['David K.', 'Sarah M.', 'Local Pastors'] },
-    { id: 's2', title: 'SALT Resource Deadline', date: '2024-06-25', type: 'deadline', description: 'Finalize Tok Pisin translation for training manuals.', participants: ['Translation Team', 'Thomas L.'] },
-    { id: 's3', title: 'Annual Strategic Review', date: '2024-07-05', type: 'milestone', description: 'Half-year progress evaluation with department heads.', participants: ['Management Team', 'Board Members'] }
-  ],
-  videos: [
-    { id: 'v1', title: 'Community Transformation', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', thumbnail: 'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800' },
-    { id: 'v2', title: 'Highlands Literacy Program', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', thumbnail: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=40&w=800' },
-    { id: 'v3', title: 'Trauma Healing Stories', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', thumbnail: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=40&w=800' }
-  ],
+         { id: 'f2', name: 'Mission_Resources_Template.docx', type: 'docx', date: '2024-05-10' }
+       ]
+     },
+     { 
+       id: '2', 
+       title: 'Impact Stories', 
+       count: 1, 
+       category: 'Community', 
+       date: '2024-04-15', 
+       image: 'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=12&w=350',
+       files: [{ id: 'f3', name: 'Highlands_Testimony.pdf', type: 'pdf', date: '2024-04-15' }]
+     },
+     { 
+       id: '3', 
+       title: 'Archive Docs', 
+       count: 0, 
+       category: 'Legacy', 
+       date: '2023-11-01', 
+       image: 'https://images.unsplash.com/photo-1516062423079-7ca13cdc7f5a?auto=format&fit=crop&q=12&w=350',
+       files: []
+     },
+     { 
+       id: '4', 
+       title: 'Annual Reviews', 
+       count: 1, 
+       category: 'Strategic', 
+       date: '2024-01-20', 
+       image: 'https://images.unsplash.com/photo-1454165833767-027ffcb99645?auto=format&fit=crop&q=12&w=350',
+       files: [{ id: 'f4', name: '2023_Financial_Review.pdf', type: 'pdf', date: '2024-01-20' }]
+     },
+     { 
+       id: '5', 
+       title: 'Policy Documents', 
+       count: 1, 
+       category: 'Management', 
+       date: '2024-05-01', 
+       image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&q=12&w=350",
+       files: [{ id: 'f5', name: 'IT_Infrastructure_Protocol.pdf', type: 'pdf', date: '2024-05-01' }]
+     },
+     { 
+       id: '6', 
+       title: 'Resources', 
+       count: 2, 
+       category: 'Educational', 
+       date: '2024-05-18', 
+       image: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=12&w=350',
+       files: [
+         { id: 'f10', name: 'Literacy_Manual_v1.docx', type: 'docx', date: '2024-05-18' },
+         { id: 'f11', name: 'PNG_Ministry_Framework.pdf', type: 'pdf', date: '2024-05-18' }
+       ]
+     }
+   ],
+   schedule: [
+     { id: 's1', title: 'Highlands Trauma Workshop', date: '2024-06-15', type: 'workshop', description: 'Intensive 3-day workshop for community leaders.', participants: ['David K.', 'Sarah M.', 'Local Pastors'] },
+     { id: 's2', title: 'SALT Resource Deadline', date: '2024-06-25', type: 'deadline', description: 'Finalize Tok Pisin translation for training manuals.', participants: ['Translation Team', 'Thomas L.'] },
+     { id: 's3', title: 'Annual Strategic Review', date: '2024-07-05', type: 'milestone', description: 'Half-year progress evaluation with department heads.', participants: ['Management Team', 'Board Members'] }
+   ],
+   videos: [
+     { id: 'v1', title: 'Community Transformation', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', thumbnail: 'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=12&w=350' },
+     { id: 'v2', title: 'Highlands Literacy Program', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', thumbnail: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=12&w=350' },
+     { id: 'v3', title: 'Trauma Healing Stories', url: 'https://www.youtube.com/embed/dQw4w9WgXcQ', thumbnail: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=12&w=350' }
+   ],
   footer: {
     email: 'sa-manager@sil.org',
     phone: '+675 7217-0330 ext. 4071',
     location: 'Ukarumpa, Eastern Highlands Province, Papua New Guinea'
   },
   authorizedCoAdmins: [],
-  pendingRequests: []
+  pendingRequests: [],
+  logoImage: 'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120'
 };

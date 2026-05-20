@@ -74,6 +74,7 @@ export interface VideoBlock {
   title: string;
   url: string;
   thumbnail: string;
+  videoData?: string;
 }
 
 export interface AppData {
@@ -89,4 +90,7 @@ export interface AppData {
   heroImage?: string;
   managerMessageImage?: string;
   footerImage?: string;
+  logoImage?: string;
+  quoteText?: string;
+  quoteRef?: string;
 }

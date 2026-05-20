@@ -37,7 +37,8 @@ import {
   Star,
   Database,
   RefreshCw,
-  Video
+  Video,
+  BookOpen
 } from 'lucide-react';
 import { AppData, Equipment, Project, Report, AdminRequest, AppFile, VideoBlock, ScheduleEvent } from './types';
 import { INITIAL_DATA } from './constants';
@@ -61,23 +62,47 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 
 // --- Components ---
 
-const Navbar = ({ isAdmin, isRoot, user, onToggleAdmin, userType, pendingRequestsCount }: { 
+const Navbar = ({ isAdmin, isRoot, user, onToggleAdmin, userType, pendingRequestsCount, logoImage, onLogoChange }: { 
   isAdmin: boolean; 
   isRoot: boolean;
   user: User | null; 
   onToggleAdmin: () => void; 
   userType: 'Root' | 'Co-Admin' | 'Guest';
   pendingRequestsCount: number;
+  logoImage?: string;
+  onLogoChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) => (
   <nav className="fixed top-0 w-full z-[100] bg-sand/80 backdrop-blur-md border-b border-emerald/10 px-6 py-4 flex justify-between items-center">
     <div className="flex items-center gap-3">
-      <div className="w-10 h-10 bg-emerald rounded-full flex items-center justify-center text-sand font-serif font-bold text-xl relative overflow-hidden group">
-        <SafeImage 
-          src="https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800" 
-          alt="Logo Background" 
-          className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-125 transition-transform"
-        />
-        <span className="relative z-10 drop-shadow-md">S</span>
+      <div className="w-10 h-10 bg-[#fbf9f4] rounded-full flex items-center justify-center border border-emerald/20 font-serif font-bold text-xl relative overflow-hidden group shadow-md shadow-emerald/5">
+        {isAdmin && onLogoChange ? (
+          <label className="absolute inset-0 w-full h-full cursor-pointer z-20 group">
+            <SafeImage 
+              src={logoImage || "https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120"} 
+              alt="Bible Background" 
+              className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-125 transition-transform"
+            />
+            <div className="absolute inset-0 bg-emerald/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-30">
+              <span className="text-[8px] font-bold text-white bg-emerald-dark/80 px-1 py-0.5 rounded scale-75">EDIT</span>
+            </div>
+            <input 
+              type="file" 
+              className="hidden" 
+              accept="image/*" 
+              onChange={onLogoChange}
+            />
+          </label>
+        ) : (
+          <SafeImage 
+            src={logoImage || "https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120"} 
+            alt="Bible Background" 
+            className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-125 transition-transform"
+          />
+        )}
+        <div className="relative z-10 flex items-center justify-center drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)] pointer-events-none">
+          <span className="text-emerald-dark drop-shadow-sm text-sm absolute -top-[2px] font-black tracking-tighter">S</span>
+          <BookOpen size={14} className="text-emerald-dark/90 mt-3 font-bold" />
+        </div>
       </div>
       <div>
         <h1 className="font-serif font-bold tracking-tight text-emerald-dark leading-tight uppercase text-sm md:text-base">Scripture Access</h1>
@@ -123,26 +148,47 @@ const Navbar = ({ isAdmin, isRoot, user, onToggleAdmin, userType, pendingRequest
 
 const SafeImage = ({ src, alt, className }: { src: string; alt: string; className?: string }) => (
   <img 
-    src={src || 'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800'} 
+    src={src || 'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120'} 
     alt={alt}
-    className={`${className} object-cover bg-neutral-100`}
+    className={`${className} object-cover bg-[#e8dec9]/30`}
     style={{ objectPosition: 'center', imageRendering: 'auto' }}
     referrerPolicy="strict-origin-when-cross-origin"
     loading="eager"
     onError={(e) => {
       const target = e.currentTarget as HTMLImageElement;
-      if (!target.src.includes('photo-1523733566457-60437fc0582d')) {
-        target.src = 'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800';
+      if (!target.src.includes('photo-1504052434569-7090ec98a3c0')) {
+        target.src = 'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120';
       }
     }}
   />
 );
 
+function getEmbedUrl(url: string): string {
+  if (!url) return '';
+  if (url.includes('/embed/')) return url;
+  
+  if (url.includes('youtube.com/watch')) {
+    const regExp = /^.*(youtu.be\/\?*|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    if (match && match[2] && match[2].length === 11) {
+      return `https://www.youtube.com/embed/${match[2]}`;
+    }
+  }
+  if (url.includes('youtu.be/')) {
+    const parts = url.split('youtu.be/');
+    if (parts.length > 1) {
+      const id = parts[1].split(/[?#]/)[0];
+      return `https://www.youtube.com/embed/${id}`;
+    }
+  }
+  return url;
+}
+
 const Hero = ({ backgroundImage, isAdmin, isRoot, onImageChange }: { backgroundImage: string; isAdmin: boolean; isRoot: boolean; onImageChange?: (base64: string) => void }) => (
   <section 
     className="relative h-screen flex flex-col justify-center items-center overflow-hidden bg-black"
     style={{ 
-      backgroundImage: `url('${backgroundImage || 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=40&w=1200'}')`, 
+      backgroundImage: `url('${backgroundImage || 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=15&w=600'}')`, 
       backgroundSize: 'cover', 
       backgroundPosition: 'center',
       imageRendering: 'auto'
@@ -268,18 +314,24 @@ export default function App() {
     description: '',
     progress: 0,
     lastStatus: '',
-    image: 'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800',
+    image: 'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=12&w=350',
     howToSupport: ''
   });
+  const [managerTitleInput, setManagerTitleInput] = useState('');
+  const [managerMessageInput, setManagerMessageInput] = useState('');
+  const [playingVideo, setPlayingVideo] = useState<VideoBlock | null>(null);
+  const [isEditingQuote, setIsEditingQuote] = useState(false);
+  const [quoteTextInput, setQuoteTextInput] = useState('');
+  const [quoteRefInput, setQuoteRefInput] = useState('');
 
   // Force image caching and pre-rendering
   useEffect(() => {
     const criticalImages = [
-      'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=40&w=1200', // Hero
-      'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=40&w=800',  // Trauma
-      'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800',  // CMS
-      'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=40&w=800',  // SALT
-      'https://images.unsplash.com/photo-1564349683136-77e08bef1ed1?auto=format&fit=crop&q=40&w=800',  // Archive
+      'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=15&w=600', // Hero
+      'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=12&w=350',  // Trauma
+      'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=12&w=350',  // CMS
+      'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=12&w=350',  // SALT
+      'https://images.unsplash.com/photo-1564349683136-77e08bef1ed1?auto=format&fit=crop&q=12&w=350',  // Archive
     ];
     
     criticalImages.forEach(url => {
@@ -313,17 +365,66 @@ export default function App() {
 
   // --- Authentication Hook ---
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+    let unsubRequests: () => void = () => {};
+    let unsubAdminsList: () => void = () => {};
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser && currentUser.email) {
         const email = currentUser.email.toLowerCase();
         const rootMatch = email === ROOT_ADMIN.toLowerCase();
-        const coAdmins = getCoAdmins();
-        const isAdminMatch = rootMatch || coAdmins.map(e => e.toLowerCase()).includes(email);
+        
+        let isAdminMatch = rootMatch;
+        if (!rootMatch) {
+          try {
+            const adminDoc = await getDoc(doc(db, 'admins', currentUser.uid));
+            if (adminDoc.exists()) {
+              isAdminMatch = true;
+            } else {
+              const q = query(collection(db, 'admins'), where('email', '==', email));
+              const snap = await getDocs(q);
+              if (!snap.empty) {
+                isAdminMatch = true;
+              }
+            }
+          } catch (err) {
+            console.error("Admin verification checked failed:", err);
+          }
+        }
         
         setIsRoot(rootMatch);
         setIsAdmin(isAdminMatch);
         setCurrentUserEmail(email);
+
+        if (rootMatch || isAdminMatch) {
+          try {
+            unsubRequests = onSnapshot(collection(db, 'admin_requests'), (snap) => {
+              const requests: AdminRequest[] = [];
+              snap.forEach(doc => {
+                const d = doc.data();
+                if (d.status === 'pending') {
+                  requests.push({
+                    id: doc.id,
+                    email: d.email,
+                    timestamp: d.timestamp
+                  });
+                }
+              });
+              setData(prev => ({ ...prev, pendingRequests: requests }));
+            });
+
+            unsubAdminsList = onSnapshot(collection(db, 'admins'), (snap) => {
+              const emails: string[] = [];
+              snap.forEach(doc => {
+                const d = doc.data();
+                if (d.email) emails.push(d.email.toLowerCase());
+              });
+              setData(prev => ({ ...prev, authorizedCoAdmins: emails }));
+            });
+          } catch (e) {
+            console.error("Real-time admin configurations listeners failed:", e);
+          }
+        }
       } else {
         setIsAdmin(false);
         setIsRoot(false);
@@ -371,6 +472,22 @@ export default function App() {
             await setDoc(doc(db, 'videos', vid.id), vid as any);
           }
         }
+        
+        // Seed configs
+        const configDoc = await getDoc(doc(db, 'configs', 'main'));
+        if (!configDoc.exists()) {
+          await setDoc(doc(db, 'configs', 'main'), {
+            heroImage: 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=15&w=600',
+            managerMessageImage: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=12&w=350',
+            footerImage: 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=15&w=600',
+            logoImage: 'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120',
+            managerTitle: 'Transforming Lives Through Access',
+            managerMessage: 'Welcome to our new digital hub. This platform represents our commitment to transparency and efficiency as we bring the Word of God to every corner of PNG. Thank you for your continued support in our strategic priorities.',
+            footer: INITIAL_DATA.footer,
+            quoteText: 'For the earth will be filled with the knowledge of the glory of the LORD as the waters cover the sea.',
+            quoteRef: 'Habakkuk 2:14'
+          });
+        }
       } catch (err) {
         console.error("Seeding failed:", err);
       }
@@ -410,7 +527,12 @@ export default function App() {
           footer: config.footer || prev.footer,
           heroImage: config.heroImage,
           managerMessageImage: config.managerMessageImage,
-          footerImage: config.footerImage
+          footerImage: config.footerImage,
+          logoImage: config.logoImage || prev.logoImage,
+          managerTitle: config.managerTitle,
+          managerMessage: config.managerMessage,
+          quoteText: config.quoteText,
+          quoteRef: config.quoteRef
         }));
       }
     });
@@ -423,6 +545,8 @@ export default function App() {
       unsubSchedule();
       unsubVideos();
       unsubConfig();
+      unsubRequests();
+      unsubAdminsList();
     };
   }, []);
 
@@ -450,75 +574,100 @@ export default function App() {
     }
   };
 
+  const openManagerMessage = () => {
+    setManagerTitleInput((data as any).managerTitle || "Transforming Lives Through Access");
+    setManagerMessageInput((data as any).managerMessage || "Welcome to our new digital hub. This platform represents our commitment to transparency and efficiency as we bring the Word of God to every corner of PNG. Thank you for your continued support in our strategic priorities.");
+    setShowManagerMessage(true);
+  };
+
   const handleRequestAccess = async () => {
     if (!user || !user.email) {
       setManagerStatus('Please sign in with your mission email first.');
       return;
     }
     
-    const requests = getPendingRequests();
-    if (requests.some(r => r.email === user.email)) {
-      setManagerStatus('Your request is already pending review.');
-      return;
-    }
-
-    const coAdmins = getCoAdmins();
-    if (coAdmins.includes(user.email)) {
+    if (data.authorizedCoAdmins.map(e => e.toLowerCase()).includes(user.email.toLowerCase())) {
       setManagerStatus('You are already an authorized co-admin.');
       setIsAdmin(true);
       return;
     }
 
-    const newRequest: AdminRequest = {
-      id: Math.random().toString(36).substr(2, 9),
-      email: user.email,
-      timestamp: new Date().toISOString()
-    };
-
-    savePendingRequests([...requests, newRequest]);
-    setManagerStatus('Request Sent: Our Root Admin will review your access shortly.');
-  };
-
-  const approveRequest = (request: AdminRequest) => {
-    const requests = getPendingRequests();
-    const coAdmins = getCoAdmins();
-
-    savePendingRequests(requests.filter(r => r.id !== request.id));
-    
-    if (!coAdmins.includes(request.email)) {
-      saveCoAdmins([...coAdmins, request.email]);
+    if (data.pendingRequests.some(r => r.email === user.email)) {
+      setManagerStatus('Your request is already pending review.');
+      return;
     }
-    
-    setManagerStatus(`Authorized: ${request.email} has been promoted to Co-Admin.`);
-  };
 
-  const deleteRequest = (id: string) => {
-    const requests = getPendingRequests();
-    savePendingRequests(requests.filter(r => r.id !== id));
-    setManagerStatus('Request declined and removed from queue.');
-  };
-
-  const revokeAdmin = (email: string) => {
-    const coAdmins = getCoAdmins();
-    saveCoAdmins(coAdmins.filter(e => e !== email));
-    setManagerStatus(`Revoked: Access for ${email} has been terminated.`);
-    
-    // Immediate elevation check if current user is revoked
-    if (user && user.email === email && !isRoot) {
-      setIsAdmin(false);
+    try {
+      await setDoc(doc(db, 'admin_requests', user.uid), {
+        email: user.email.toLowerCase(),
+        timestamp: new Date().toISOString(),
+        status: 'pending'
+      });
+      setManagerStatus('Request Sent: Our Root Admin will review your access shortly.');
+    } catch (err) {
+      console.error("Submit request access failed in firestore", err);
+      handleFirestoreError(err, OperationType.CREATE, `admin_requests/${user.uid}`);
     }
   };
 
-  const grantDirectAccess = (email: string) => {
+  const approveRequest = async (request: AdminRequest) => {
+    try {
+      await setDoc(doc(db, 'admins', request.id), {
+        email: request.email.toLowerCase(),
+        approved: true,
+        approvedAt: new Date().toISOString()
+      });
+
+      await deleteDoc(doc(db, 'admin_requests', request.id));
+      setManagerStatus(`Authorized: ${request.email} has been promoted to Co-Admin.`);
+    } catch (err) {
+      console.error("Failed to approve co-admin request:", err);
+      handleFirestoreError(err, OperationType.UPDATE, `admins/${request.id}`);
+    }
+  };
+
+  const deleteRequest = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'admin_requests', id));
+      setManagerStatus('Request declined and removed from queue.');
+    } catch (err) {
+      console.error("Failed to delete admin request:", err);
+      handleFirestoreError(err, OperationType.DELETE, `admin_requests/${id}`);
+    }
+  };
+
+  const revokeAdmin = async (email: string) => {
+    try {
+      const q = query(collection(db, 'admins'), where('email', '==', email.toLowerCase()));
+      const snap = await getDocs(q);
+      snap.forEach(async (d) => {
+        await deleteDoc(doc(db, 'admins', d.id));
+      });
+      setManagerStatus(`Revoked: Access for ${email} has been terminated.`);
+      if (user && user.email?.toLowerCase() === email.toLowerCase() && !isRoot) {
+        setIsAdmin(false);
+      }
+    } catch (err) {
+      console.error("Failed to revoke co-admin:", err);
+      handleFirestoreError(err, OperationType.DELETE, 'admins');
+    }
+  };
+
+  const grantDirectAccess = async (email: string) => {
     if (!email || !email.includes('@')) return;
-    const coAdmins = getCoAdmins();
     const targetEmail = email.toLowerCase();
     
-    if (!coAdmins.includes(targetEmail)) {
-      saveCoAdmins([...coAdmins, targetEmail]);
+    try {
+      const adminId = 'direct_' + Math.random().toString(36).substr(2, 9);
+      await setDoc(doc(db, 'admins', adminId), {
+        email: targetEmail,
+        approved: true,
+        approvedAt: new Date().toISOString()
+      });
       setManagerStatus(`Approved: ${targetEmail} is now an authorized Co-Admin.`);
-    } else {
-      setManagerStatus(`${targetEmail} is already authorized.`);
+    } catch (err) {
+      console.error("Failed to grant direct co-admin access:", err);
+      handleFirestoreError(err, OperationType.CREATE, 'admins');
     }
   };
 
@@ -540,14 +689,14 @@ export default function App() {
       description: projectForm.description || '',
       progress: projectForm.progress || 0,
       lastStatus: projectForm.lastStatus || 'Project initiated.',
-      image: projectForm.image || 'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800',
+      image: projectForm.image || 'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=12&w=350',
       howToSupport: projectForm.howToSupport || 'Contact coordinator for info.'
     };
     
     try {
       await setDoc(doc(db, 'projects', id), project);
       setIsAddingProject(false);
-      setProjectForm({ name: '', description: '', progress: 0, lastStatus: '', image: 'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800', howToSupport: '' });
+      setProjectForm({ name: '', description: '', progress: 0, lastStatus: '', image: 'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=12&w=350', howToSupport: '' });
     } catch (e) {
       handleFirestoreError(e, OperationType.CREATE, 'projects');
     }
@@ -561,19 +710,84 @@ export default function App() {
     }
   };
 
-  // Helper for image upload (Base64)
+  const compressImage = (base64Str: string, maxWidth = 1000, maxHeight = 750): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.65)); // Highly compressed and light JPEG 
+        } else {
+          resolve(base64Str);
+        }
+      };
+      img.onerror = () => resolve(base64Str);
+    });
+  };
+
+  // Helper for image upload (Base64 + Automatic Client-Side Compression)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, callback: (base64: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) {
-        setManagerStatus("File too large. Please use an image smaller than 1MB.");
+      setIsUploading(true);
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const rawBase64 = reader.result as string;
+          const compressed = await compressImage(rawBase64);
+          callback(compressed);
+        } catch (err) {
+          console.error("image upload compression failed:", err);
+          setManagerStatus("Failed to process image. Try another file.");
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Helper for video file upload (<1.5MB to fit Database limits)
+  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>, videoId: string) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1.5 * 1024 * 1024) {
+        setManagerStatus("For database performance, directly uploaded MP4 files must be under 1.5MB. For larger videos, please use standard YouTube links.");
         return;
       }
       setIsUploading(true);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        callback(reader.result as string);
-        setIsUploading(false);
+      reader.onloadend = async () => {
+        try {
+          const base64 = reader.result as string;
+          await updateVideo(videoId, { 
+            videoData: base64,
+            url: '' // Reset iframe url if a custom video file was supplied
+          });
+          setManagerStatus("Video file uploaded and saved to slot successfully.");
+        } catch (err) {
+          handleFirestoreError(err, OperationType.UPDATE, `videos/${videoId}`);
+        } finally {
+          setIsUploading(false);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -676,7 +890,7 @@ export default function App() {
       category: newReport.category || 'General',
       count: 0,
       date: new Date().toISOString().split('T')[0],
-      image: 'https://images.unsplash.com/photo-1564349683136-77e08bef1ed1?auto=format&fit=crop&q=40&w=800',
+      image: 'https://images.unsplash.com/photo-1564349683136-77e08bef1ed1?auto=format&fit=crop&q=12&w=350',
       files: []
     };
     try {
@@ -749,6 +963,14 @@ export default function App() {
         onToggleAdmin={handleAdminToggle} 
         userType={userType} 
         pendingRequestsCount={data.pendingRequests.length}
+        logoImage={data.logoImage}
+        onLogoChange={(e) => handleFileUpload(e, async (base64) => {
+          try {
+            await setDoc(doc(db, 'configs', 'main'), { logoImage: base64 }, { merge: true });
+          } catch (err) {
+            handleFirestoreError(err, OperationType.UPDATE, 'configs/main - logoImage');
+          }
+        })}
       />
       
       <main>
@@ -823,50 +1045,76 @@ export default function App() {
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                className="group relative flex flex-col"
+                className="group relative flex flex-col cursor-pointer"
+                onClick={() => {
+                  if (!showVideoAdmin) {
+                    setPlayingVideo(video);
+                  }
+                }}
               >
                 <div className="aspect-video rounded-[2.5rem] overflow-hidden bg-emerald-dark/5 shadow-2xl relative border border-emerald/5">
-                  {/* Thumbnail background for slow internet persistence */}
+                  {/* Thumbnail Background */}
                   <div className="absolute inset-0 z-0">
-                    <SafeImage src="https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800" alt={video.title} className="w-full h-full object-cover opacity-50" />
+                    <SafeImage src={video.thumbnail || "https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=12&w=350"} alt={video.title} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" />
                   </div>
                   {showVideoAdmin ? (
-                    <div className="absolute inset-0 bg-sand/95 backdrop-blur-sm z-20 p-6 flex flex-col justify-center space-y-4">
+                    <div className="absolute inset-0 bg-sand/95 backdrop-blur-sm z-20 p-5 flex flex-col justify-center space-y-2" onClick={(e) => e.stopPropagation()}>
                       <input 
                         value={video.title}
                         onChange={(e) => updateVideo(video.id, { title: e.target.value })}
                         placeholder="Video Title"
-                        className="bg-emerald/5 border border-emerald/10 p-3 rounded-xl text-sm font-bold w-full"
+                        className="bg-emerald/5 border border-emerald/10 p-2 rounded-xl text-xs font-bold w-full"
                       />
                       <input 
-                        value={video.url}
-                        onChange={(e) => updateVideo(video.id, { url: e.target.value })}
-                        placeholder="Embed URL (YouTube/Vimeo)"
-                        className="bg-emerald/5 border border-emerald/10 p-3 rounded-xl text-xs w-full"
+                        value={video.url || ''}
+                        onChange={(e) => updateVideo(video.id, { url: e.target.value, videoData: '' })}
+                        placeholder="YouTube URL"
+                        className="bg-emerald/5 border border-emerald/10 p-2 rounded-xl text-[10px] w-full"
                       />
-                      <p className="text-[9px] text-emerald/40 font-bold uppercase text-center">Admin Controls Enabled</p>
+                      <div className="text-[8px] text-emerald-dark/40 font-bold uppercase text-center">- OR -</div>
+                      <label className="flex items-center justify-center gap-1.5 bg-emerald text-sand p-2 rounded-xl text-[9px] font-bold cursor-pointer hover:bg-emerald-light transition-all uppercase tracking-widest">
+                        {isUploading ? 'Uploading Clip...' : 'Upload Video file'}
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="video/mp4,video/quicktime,video/webm" 
+                          onChange={(e) => handleVideoUpload(e, video.id)} 
+                        />
+                      </label>
+                      {video.videoData && (
+                        <div className="text-[9px] text-emerald font-bold text-center flex items-center justify-between bg-emerald/10 p-1 rounded-lg">
+                          <span>✓ Storage Video Loaded</span>
+                          <button 
+                            className="text-red-600 hover:text-red-800 font-black uppercase tracking-tight"
+                            onClick={async () => {
+                              await updateVideo(video.id, { videoData: '' });
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <>
-                      <iframe 
-                        src={video.url}
-                        title={video.title}
-                        className="w-full h-full object-cover"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      ></iframe>
-                      <div className="absolute inset-0 pointer-events-none group-hover:bg-emerald-dark/10 transition-colors"></div>
+                      {/* Interactive Glassmorphic Play button */}
+                      <div className="absolute inset-0 z-10 flex items-center justify-center group-hover:bg-emerald-dark/15 transition-all duration-300">
+                        <div className="w-14 h-14 rounded-full bg-sand/90 backdrop-blur-md text-emerald flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:bg-emerald group-hover:text-sand transition-all duration-300">
+                          <Play size={20} fill="currentColor" className="ml-1" />
+                        </div>
+                      </div>
+                      <div className="absolute inset-0 pointer-events-none border border-white/10 rounded-[2.5rem]"></div>
                     </>
                   )}
                 </div>
                 <div className="mt-4 px-4 flex justify-between items-center">
-                   <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-emerald/10 flex items-center justify-center text-emerald">
-                         <Play size={14} fill="currentColor" />
-                      </div>
-                      <h4 className="font-serif text-xl font-bold text-emerald-dark tracking-tight">{video.title}</h4>
-                   </div>
-                   <Video size={16} className="text-emerald/20" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-emerald/10 flex items-center justify-center text-emerald">
+                      <Play size={14} fill="currentColor" />
+                    </div>
+                    <h4 className="font-serif text-lg font-bold text-emerald-dark tracking-tight">{video.title}</h4>
+                  </div>
+                  <Video size={16} className="text-emerald/20" />
                 </div>
               </motion.div>
             ))}
@@ -876,7 +1124,7 @@ export default function App() {
         {/* Strategic Priorities */}
         <section className="max-w-6xl mx-auto px-6 mb-32 relative">
           <div className="absolute top-0 -left-64 w-[600px] h-[600px] opacity-[0.03] pointer-events-none rounded-full overflow-hidden blur-[100px]">
-             <SafeImage src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=40&w=800" alt="" className="w-full h-full" />
+             <SafeImage src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=12&w=350" alt="" className="w-full h-full" />
           </div>
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 relative z-10">
             <div className="flex-1">
@@ -899,7 +1147,7 @@ export default function App() {
                 </button>
               )}
               <button 
-                onClick={() => setShowManagerMessage(true)}
+                onClick={openManagerMessage}
                 className="flex items-center gap-2 text-emerald font-bold border-b-2 border-emerald/20 hover:border-emerald transition-all pb-1 group text-sm uppercase tracking-widest"
               >
                 Manager Message <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
@@ -956,7 +1204,7 @@ export default function App() {
                   <p className="text-emerald/60 text-sm mb-6 line-clamp-3 leading-relaxed font-medium">{project.description}</p>
                   
                   {isAdmin ? (
-                    <div className="pt-6 border-t border-emerald/5 mt-auto space-y-4">
+                    <div className="pt-6 border-t border-emerald/5 mt-auto space-y-4" onClick={(e) => e.stopPropagation()}>
                       <div>
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-[9px] font-bold text-emerald/40 uppercase tracking-widest block">Financial Status</span>
@@ -967,8 +1215,7 @@ export default function App() {
                               max="100"
                               value={project.progress}
                               onChange={(e) => updateProject(project.id, { progress: Math.min(100, Math.max(0, Number(e.target.value))) })}
-                              className="w-12 bg-emerald/5 border border-emerald/10 text-emerald font-bold text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald text-center"
-                              onClick={(e) => e.stopPropagation()}
+                              className="w-12 bg-emerald/5 border border-emerald/10 text-emerald-dark font-bold text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald text-center font-mono"
                             />
                             <span className="text-[10px] font-bold text-emerald">%</span>
                           </div>
@@ -978,7 +1225,6 @@ export default function App() {
                           min="0"
                           max="100"
                           value={project.progress}
-                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) => updateProject(project.id, { progress: Number(e.target.value) })}
                           className="w-full accent-emerald h-1.5 rounded-full cursor-pointer"
                         />
@@ -1004,12 +1250,56 @@ export default function App() {
           <div className="relative py-32 bg-emerald-dark/10 rounded-[3rem] overflow-hidden my-20 border border-emerald/10">
             <div className="absolute inset-0">
               <SafeImage 
-                src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=40&w=800" 
+                src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=12&w=350" 
                 alt="Quote Background" 
                 className="w-full h-full object-cover opacity-20 scale-110"
               />
               <div className="absolute inset-0 bg-gradient-to-r from-sand/80 via-transparent to-sand/80"></div>
             </div>
+            {isAdmin && (
+              <div className="absolute top-6 right-6 z-20">
+                {!isEditingQuote ? (
+                  <button 
+                    onClick={() => {
+                      setQuoteTextInput(data.quoteText || "For the earth will be filled with the knowledge of the glory of the LORD as the waters cover the sea.");
+                      setQuoteRefInput(data.quoteRef || "Habakkuk 2:14");
+                      setIsEditingQuote(true);
+                    }}
+                    className="flex items-center gap-1 bg-white/60 hover:bg-emerald hover:text-sand text-emerald-dark font-bold text-xs px-3.5 py-2 rounded-xl backdrop-blur-sm transition-all shadow-sm"
+                  >
+                    <Pencil size={12} />
+                    <span>Quote Edit</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await setDoc(doc(db, 'configs', 'main'), {
+                            quoteText: quoteTextInput,
+                            quoteRef: quoteRefInput
+                          }, { merge: true });
+                          setIsEditingQuote(false);
+                          setManagerStatus("Scripture Quote saved successfully!");
+                        } catch (err) {
+                          console.error("Failed to update quote:", err);
+                        }
+                      }}
+                      className="flex items-center gap-1 bg-emerald text-sand font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-sm"
+                    >
+                      <Check size={12} />
+                      <span>Save</span>
+                    </button>
+                    <button 
+                      onClick={() => setIsEditingQuote(false)}
+                      className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="relative z-10 max-w-3xl mx-auto px-6 text-center">
                <motion.div
                  initial={{ opacity: 0, y: 10 }}
@@ -1017,10 +1307,39 @@ export default function App() {
                  viewport={{ once: true }}
                >
                   <div className="w-12 h-1 bg-emerald mx-auto mb-8 rounded-full"></div>
-                  <h3 className="font-serif text-3xl md:text-4xl font-bold text-emerald-dark leading-tight italic">
-                    "For the earth will be filled with the knowledge of the glory of the LORD as the waters cover the sea."
-                  </h3>
-                  <p className="text-emerald font-black uppercase tracking-[0.3em] text-[10px] mt-8">- Habakkuk 2:14 -</p>
+                  {isEditingQuote ? (
+                    <div className="space-y-4 max-w-2xl mx-auto">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-emerald/60 tracking-widest block text-left mb-1">Bible Verse Text</label>
+                        <textarea
+                          value={quoteTextInput}
+                          onChange={(e) => setQuoteTextInput(e.target.value)}
+                          rows={3}
+                          className="w-full bg-white/80 border border-emerald/20 p-3 rounded-2xl text-emerald-dark font-serif text-lg text-center font-bold focus:outline-none focus:ring-2 focus:ring-emerald/40"
+                          placeholder="Quote / Scripture Text..."
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-emerald/60 tracking-widest block text-left mb-1">Scripture Reference</label>
+                        <input
+                          type="text"
+                          value={quoteRefInput}
+                          onChange={(e) => setQuoteRefInput(e.target.value)}
+                          className="w-full bg-white/80 border border-emerald/20 p-2.5 rounded-xl text-center text-xs font-bold text-emerald-dark focus:outline-none focus:ring-2 focus:ring-emerald/40"
+                          placeholder="e.g. Habakkuk 2:14"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <h3 className="font-serif text-3xl md:text-4xl font-bold text-emerald-dark leading-tight italic">
+                        "{data.quoteText || "For the earth will be filled with the knowledge of the glory of the LORD as the waters cover the sea."}"
+                      </h3>
+                      <p className="text-emerald font-black uppercase tracking-[0.3em] text-[10px] mt-8">
+                        - {data.quoteRef || "Habakkuk 2:14"} -
+                      </p>
+                    </>
+                  )}
                </motion.div>
             </div>
           </div>
@@ -1029,10 +1348,10 @@ export default function App() {
           <div className="bg-emerald-dark/5 rounded-[3rem] p-10 border border-emerald/10 relative overflow-hidden">
             <div className="absolute inset-0 z-0">
               <SafeImage 
-                src="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=40&w=800" 
+                src="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=12&w=350" 
                 alt="Schedule Background" 
                 className="w-full h-full object-cover opacity-5"
-              />
+               />
             </div>
             <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none z-10">
               <Calendar size={200} className="text-emerald" />
@@ -1259,7 +1578,7 @@ export default function App() {
           <div className="bg-white rounded-[3.5rem] p-10 md:p-16 border border-emerald/5 shadow-sm overflow-hidden relative">
             <div className="absolute inset-0 z-0">
               <SafeImage 
-                src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&q=40&w=800" 
+                src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&q=12&w=350" 
                 alt="Asset Background" 
                 className="w-full h-full object-cover opacity-5"
               />
@@ -1404,7 +1723,7 @@ export default function App() {
           {/* Authentic PNG Hub Asset */}
           <div className="absolute inset-0 z-0">
             <SafeImage 
-              src="https://images.unsplash.com/photo-1516062423079-7ca13cdc7f5a?auto=format&fit=crop&q=40&w=800" 
+              src="https://images.unsplash.com/photo-1516062423079-7ca13cdc7f5a?auto=format&fit=crop&q=12&w=350" 
               alt="Archive Background" 
               className="w-full h-full object-cover opacity-20"
             />
@@ -1541,7 +1860,7 @@ export default function App() {
           {/* Papua New Guinea Visual Identity */}
           <div className="absolute inset-0 z-0">
             <SafeImage 
-              src={data.footerImage || "https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=40&w=1200"}
+              src={data.footerImage || "https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=15&w=600"}
               alt="Footer Background"
               className="w-full h-full object-cover opacity-10"
             />
@@ -1569,13 +1888,41 @@ export default function App() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
               <div className="col-span-1 lg:col-span-2">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-emerald rounded-full flex items-center justify-center text-sand font-serif font-bold text-xl relative overflow-hidden">
-                    <SafeImage 
-                      src="https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800" 
-                      alt="Footer Logo bg" 
-                      className="absolute inset-0 w-full h-full object-cover opacity-40"
-                    />
-                    <span className="relative z-10">S</span>
+                  <div className="w-10 h-10 bg-[#fbf9f4] rounded-full flex items-center justify-center border border-emerald/20 font-serif font-bold text-xl relative overflow-hidden shadow-md shadow-emerald/5">
+                    {isAdmin ? (
+                      <label className="absolute inset-0 w-full h-full cursor-pointer z-20 group">
+                        <SafeImage 
+                          src={data.logoImage || "https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120"} 
+                          alt="Footer Logo bg" 
+                          className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-125 transition-transform"
+                        />
+                        <div className="absolute inset-0 bg-emerald/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-30">
+                          <span className="text-[8px] font-bold text-white bg-emerald-dark/80 px-1 py-0.5 rounded scale-75">EDIT</span>
+                        </div>
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*" 
+                          onChange={(e) => handleFileUpload(e, async (base64) => {
+                            try {
+                              await setDoc(doc(db, 'configs', 'main'), { logoImage: base64 }, { merge: true });
+                            } catch (err) {
+                              handleFirestoreError(err, OperationType.UPDATE, 'configs/main - logoImage');
+                            }
+                          })}
+                        />
+                      </label>
+                    ) : (
+                      <SafeImage 
+                        src={data.logoImage || "https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120"} 
+                        alt="Footer Logo bg" 
+                        className="absolute inset-0 w-full h-full object-cover opacity-85"
+                      />
+                    )}
+                    <div className="relative z-10 flex items-center justify-center drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)] pointer-events-none">
+                      <span className="text-emerald-dark text-sm absolute -top-[2px] font-black tracking-tighter">S</span>
+                      <BookOpen size={14} className="text-emerald-dark/90 mt-3 font-bold" />
+                    </div>
                   </div>
                   <h3 className="font-serif text-2xl font-bold tracking-tight uppercase">Scripture Access PNG</h3>
                 </div>
@@ -1643,148 +1990,175 @@ export default function App() {
 
       {/* Project Details / Edit Modal */}
       <AnimatePresence>
-        {showProjectModal && selectedProject && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
-            <div className="absolute inset-0 bg-emerald-dark/90 backdrop-blur-xl" onClick={() => setShowProjectModal(false)}></div>
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-sand rounded-[3rem] overflow-hidden max-w-4xl w-full relative z-10 shadow-2xl flex flex-col md:flex-row h-full max-h-[85vh]"
-            >
-              <button 
-                onClick={() => setShowProjectModal(false)}
-                className="absolute top-6 right-6 w-12 h-12 bg-emerald/10 rounded-full flex items-center justify-center text-emerald-dark hover:bg-emerald hover:text-sand transition-all z-20"
+        {showProjectModal && selectedProject && (() => {
+          const activeProjectDetail = data.projects.find(p => p.id === selectedProject.id) || selectedProject;
+          return (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
+              <div className="absolute inset-0 bg-emerald-dark/90 backdrop-blur-xl" onClick={() => setShowProjectModal(false)}></div>
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-sand rounded-[3rem] overflow-hidden max-w-4xl w-full relative z-10 shadow-2xl flex flex-col md:flex-row h-full max-h-[85vh]"
               >
-                <X size={24} />
-              </button>
+                <button 
+                  onClick={() => setShowProjectModal(false)}
+                  className="absolute top-6 right-6 w-12 h-12 bg-emerald/10 rounded-full flex items-center justify-center text-emerald-dark hover:bg-emerald hover:text-sand transition-all z-20"
+                >
+                  <X size={24} />
+                </button>
 
-              <div className="w-full md:w-2/5 relative h-64 md:h-full group">
-                <div className="absolute inset-0">
-                  <SafeImage 
-                    src={selectedProject.image} 
-                    alt={selectedProject.name} 
-                    className="w-full h-full object-cover"
-                  />
-                  {isAdmin && (
-                    <label className="absolute inset-0 flex items-center justify-center bg-emerald-dark/40 opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
-                      <div className="bg-sand text-emerald px-6 py-3 rounded-2xl flex items-center gap-3 shadow-2xl scale-95 hover:scale-100 transition-transform">
-                        <FileUp size={24} />
-                        <span className="text-xs font-black uppercase tracking-widest">Replace Illustration</span>
-                      </div>
-                      <input 
-                        type="file" 
-                        className="hidden" 
-                        accept="image/*" 
-                        onChange={(e) => handleFileUpload(e, (base64) => updateProject(selectedProject.id, { image: base64 }))} 
-                      />
-                    </label>
-                  )}
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent to-sand md:hidden"></div>
-              </div>
-
-              <div className="flex-1 p-8 md:p-12 overflow-y-auto">
-                {isAdmin ? (
-                  <div className="space-y-6">
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Project Title</label>
-                      <input 
-                        value={selectedProject.name}
-                        onChange={(e) => updateProject(selectedProject.id, { name: e.target.value })}
-                        className="w-full bg-emerald/5 border border-emerald/10 p-4 rounded-2xl text-2xl font-serif font-bold text-emerald-dark"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Project Overview (Comprehensive)</label>
-                      <textarea 
-                        value={selectedProject.description}
-                        onChange={(e) => updateProject(selectedProject.id, { description: e.target.value })}
-                        className="w-full bg-emerald/5 border border-emerald/10 p-4 rounded-2xl text-sm leading-relaxed text-emerald-dark/70 h-32 resize-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">How to Support (Methods & Sponsorship)</label>
-                      <textarea 
-                        value={selectedProject.howToSupport || ''}
-                        onChange={(e) => updateProject(selectedProject.id, { howToSupport: e.target.value })}
-                        placeholder="Provide details on how donors can sponsor this specific initiative..."
-                        className="w-full bg-emerald/10 border border-emerald/20 p-4 rounded-2xl text-sm leading-relaxed text-emerald h-32 resize-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Latest Status Update</label>
-                      <textarea 
-                        value={selectedProject.lastStatus}
-                        onChange={(e) => updateProject(selectedProject.id, { lastStatus: e.target.value })}
-                        className="w-full bg-emerald/5 border border-emerald/10 p-4 rounded-2xl text-xs italic text-emerald leading-relaxed h-20 resize-none"
-                      />
-                    </div>
+                <div className="w-full md:w-2/5 relative h-64 md:h-full group">
+                  <div className="absolute inset-0">
+                    <SafeImage 
+                      src={activeProjectDetail.image} 
+                      alt={activeProjectDetail.name} 
+                      className="w-full h-full object-cover"
+                    />
+                    {isAdmin && (
+                      <label className="absolute inset-0 flex items-center justify-center bg-emerald-dark/40 opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                        <div className="bg-sand text-emerald px-6 py-3 rounded-2xl flex items-center gap-3 shadow-2xl scale-95 hover:scale-100 transition-transform">
+                          <FileUp size={24} />
+                          <span className="text-xs font-black uppercase tracking-widest">Replace Illustration</span>
+                        </div>
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*" 
+                          onChange={(e) => handleFileUpload(e, (base64) => updateProject(activeProjectDetail.id, { image: base64 }))} 
+                        />
+                      </label>
+                    )}
                   </div>
-                ) : (
-                  <div className="space-y-10">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-1 bg-emerald rounded-full"></div>
-                        <span className="text-emerald font-bold uppercase tracking-widest text-[10px]">Active Priority</span>
-                      </div>
-                      <h3 className="font-serif text-5xl font-bold text-emerald-dark tracking-tighter leading-tight">{selectedProject.name}</h3>
-                    </div>
-                    
-                    <div className="space-y-8">
-                      <section>
-                        <h5 className="text-[10px] uppercase font-black text-emerald tracking-[0.3em] mb-4">Project Overview</h5>
-                        <p className="text-emerald-dark/70 text-lg leading-relaxed font-normal">
-                          {selectedProject.description}
-                        </p>
-                      </section>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent to-sand md:hidden"></div>
+                </div>
 
-                      <section className="bg-emerald/5 rounded-[2.5rem] p-8 md:p-10 border border-emerald/10">
-                        <div className="flex items-center gap-3 mb-6">
-                           <TrendingUp className="text-emerald" size={20} />
-                           <h5 className="font-serif text-2xl font-bold text-emerald-dark">How to Support</h5>
-                        </div>
-                        <p className="text-emerald-dark/80 text-base leading-relaxed mb-8">
-                          {selectedProject.howToSupport || "Thank you for your interest in our mission. Details on specific support needs for this project are currently being updated. Please contact our main office for sponsorship opportunities."}
-                        </p>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                           <button className="bg-emerald text-sand py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:shadow-xl transition-all">Sponsor Now</button>
-                           <button className="bg-sand border border-emerald/20 text-emerald py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-emerald/5 transition-all">Get Materials</button>
-                        </div>
-                      </section>
-                    </div>
-
-                    <div className="bg-emerald-dark p-8 rounded-[2rem] text-sand shadow-2xl">
-                      <div className="flex justify-between items-end mb-6">
-                        <div>
-                          <p className="text-[10px] uppercase font-bold text-emerald-light tracking-widest mb-1">Financial Impact</p>
-                          <h6 className="font-serif text-2xl font-bold">Strategic Milestone</h6>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-3xl font-serif font-bold text-emerald-light">{selectedProject.progress}%</span>
-                          <p className="text-[10px] font-bold text-sand/40">FUNDING REACHED</p>
+                <div className="flex-1 p-8 md:p-12 overflow-y-auto">
+                  {isAdmin ? (
+                    <div className="space-y-6">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Project Title</label>
+                        <input 
+                          value={activeProjectDetail.name}
+                          onChange={(e) => updateProject(activeProjectDetail.id, { name: e.target.value })}
+                          className="w-full bg-emerald/5 border border-emerald/10 p-4 rounded-2xl text-2xl font-serif font-bold text-emerald-dark"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Project Overview (Comprehensive)</label>
+                        <textarea 
+                          value={activeProjectDetail.description}
+                          onChange={(e) => updateProject(activeProjectDetail.id, { description: e.target.value })}
+                          className="w-full bg-emerald/5 border border-emerald/10 p-4 rounded-2xl text-sm leading-relaxed text-emerald-dark/70 h-32 resize-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Financial Status Progress (%)</label>
+                        <div className="flex items-center gap-4 bg-emerald/5 p-4 rounded-2xl border border-emerald/10">
+                          <input 
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={activeProjectDetail.progress}
+                            onChange={(e) => updateProject(activeProjectDetail.id, { progress: Number(e.target.value) })}
+                            className="flex-1 accent-emerald h-1.5 rounded-full cursor-pointer"
+                          />
+                          <div className="flex items-center gap-1">
+                            <input 
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={activeProjectDetail.progress}
+                              onChange={(e) => updateProject(activeProjectDetail.id, { progress: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                              className="w-16 bg-white border border-emerald/20 text-emerald-dark font-bold text-xs rounded-xl px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald text-center font-mono"
+                            />
+                            <span className="text-xs font-bold text-emerald-dark">%</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="h-2 w-full bg-sand/10 rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${selectedProject.progress}%` }}
-                          className="h-full bg-emerald-light rounded-full"
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">How to Support (Methods & Sponsorship)</label>
+                        <textarea 
+                          value={activeProjectDetail.howToSupport || ''}
+                          onChange={(e) => updateProject(activeProjectDetail.id, { howToSupport: e.target.value })}
+                          placeholder="Provide details on how donors can sponsor this specific initiative..."
+                          className="w-full bg-emerald/10 border border-emerald/20 p-4 rounded-2xl text-sm leading-relaxed text-emerald h-32 resize-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Latest Status Update</label>
+                        <textarea 
+                          value={activeProjectDetail.lastStatus}
+                          onChange={(e) => updateProject(activeProjectDetail.id, { lastStatus: e.target.value })}
+                          className="w-full bg-emerald/5 border border-emerald/10 p-4 rounded-2xl text-xs italic text-emerald leading-relaxed h-20 resize-none"
                         />
                       </div>
                     </div>
+                  ) : (
+                    <div className="space-y-10">
+                      <div>
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-8 h-1 bg-emerald rounded-full"></div>
+                          <span className="text-emerald font-bold uppercase tracking-widest text-[10px]">Active Priority</span>
+                        </div>
+                        <h3 className="font-serif text-5xl font-bold text-emerald-dark tracking-tighter leading-tight">{activeProjectDetail.name}</h3>
+                      </div>
+                      
+                      <div className="space-y-8">
+                        <section>
+                          <h5 className="text-[10px] uppercase font-black text-emerald tracking-[0.3em] mb-4">Project Overview</h5>
+                          <p className="text-emerald-dark/70 text-lg leading-relaxed font-normal">
+                            {activeProjectDetail.description}
+                          </p>
+                        </section>
 
-                    <div className="border-l-4 border-emerald-light pl-6 py-2">
-                      <p className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2">Field Intelligence</p>
-                      <p className="text-emerald-dark italic text-lg leading-relaxed font-medium">"{selectedProject.lastStatus}"</p>
+                        <section className="bg-emerald/5 rounded-[2.5rem] p-8 md:p-10 border border-emerald/10">
+                          <div className="flex items-center gap-3 mb-6">
+                             <TrendingUp className="text-emerald" size={20} />
+                             <h5 className="font-serif text-2xl font-bold text-emerald-dark">How to Support</h5>
+                          </div>
+                          <p className="text-emerald-dark/80 text-base leading-relaxed mb-8">
+                            {activeProjectDetail.howToSupport || "Thank you for your interest in our mission. Details on specific support needs for this project are currently being updated. Please contact our main office for sponsorship opportunities."}
+                          </p>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                             <button className="bg-emerald text-sand py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:shadow-xl transition-all">Sponsor Now</button>
+                             <button className="bg-sand border border-emerald/20 text-emerald py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-emerald/5 transition-all">Get Materials</button>
+                          </div>
+                        </section>
+                      </div>
+
+                      <div className="bg-emerald-dark p-8 rounded-[2rem] text-sand shadow-2xl">
+                        <div className="flex justify-between items-end mb-6">
+                          <div>
+                            <p className="text-[10px] uppercase font-bold text-emerald-light tracking-widest mb-1">Financial Impact</p>
+                            <h6 className="font-serif text-2xl font-bold">Strategic Milestone</h6>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-3xl font-serif font-bold text-emerald-light">{activeProjectDetail.progress}%</span>
+                            <p className="text-[10px] font-bold text-sand/40">FUNDING REACHED</p>
+                          </div>
+                        </div>
+                        <div className="h-2 w-full bg-sand/10 rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${activeProjectDetail.progress}%` }}
+                            className="h-full bg-emerald-light rounded-full"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="border-l-4 border-emerald-light pl-6 py-2">
+                        <p className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2">Field Intelligence</p>
+                        <p className="text-emerald-dark italic text-lg leading-relaxed font-medium">"{activeProjectDetail.lastStatus}"</p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* Report Files Viewer / Upload Modal */}
@@ -2049,13 +2423,75 @@ export default function App() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Event Date</label>
-                    <input 
-                      type="date"
-                      value={eventForm.date}
-                      onChange={(e) => setEventForm({...eventForm, date: e.target.value})}
-                      className="w-full bg-emerald/5 border border-emerald/10 p-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald/20 text-emerald-dark font-bold"
-                    />
+                    <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Event Date (US Format)</label>
+                    <div className="flex gap-2">
+                      {/* Month Select */}
+                      <select 
+                        value={eventForm.date ? (eventForm.date.split('-')[1] || '05') : '05'}
+                        onChange={(e) => {
+                          const parts = (eventForm.date || '2026-05-20').split('-');
+                          if (parts.length < 3) {
+                            parts[0] = '2026';
+                            parts[1] = '05';
+                            parts[2] = '20';
+                          }
+                          parts[1] = e.target.value;
+                          setEventForm({...eventForm, date: parts.join('-')});
+                        }}
+                        className="flex-1 bg-emerald/5 border border-emerald/10 p-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald/20 text-emerald-dark font-bold text-xs"
+                      >
+                        <option value="01">Jan</option>
+                        <option value="02">Feb</option>
+                        <option value="03">Mar</option>
+                        <option value="04">Apr</option>
+                        <option value="05">May</option>
+                        <option value="06">Jun</option>
+                        <option value="07">Jul</option>
+                        <option value="08">Aug</option>
+                        <option value="09">Sep</option>
+                        <option value="10">Oct</option>
+                        <option value="11">Nov</option>
+                        <option value="12">Dec</option>
+                      </select>
+                      {/* Day Select */}
+                      <select 
+                        value={eventForm.date ? (eventForm.date.split('-')[2] || '20') : '20'}
+                        onChange={(e) => {
+                          const parts = (eventForm.date || '2026-05-20').split('-');
+                          if (parts.length < 3) {
+                            parts[0] = '2026';
+                            parts[1] = '05';
+                            parts[2] = '20';
+                          }
+                          parts[2] = e.target.value;
+                          setEventForm({...eventForm, date: parts.join('-')});
+                        }}
+                        className="w-16 bg-emerald/5 border border-emerald/10 p-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald/20 text-emerald-dark font-bold text-xs"
+                      >
+                        {Array.from({length: 31}, (_, i) => String(i + 1).padStart(2, '0')).map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                      {/* Year Select */}
+                      <select 
+                        value={eventForm.date ? (eventForm.date.split('-')[0] || '2026') : '2026'}
+                        onChange={(e) => {
+                          const parts = (eventForm.date || '2026-05-20').split('-');
+                          if (parts.length < 3) {
+                            parts[0] = '2026';
+                            parts[1] = '05';
+                            parts[2] = '20';
+                          }
+                          parts[0] = e.target.value;
+                          setEventForm({...eventForm, date: parts.join('-')});
+                        }}
+                        className="w-24 bg-emerald/5 border border-emerald/10 p-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald/20 text-emerald-dark font-bold text-xs"
+                      >
+                        {['2025', '2026', '2027', '2028', '2029', '2030'].map(y => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div>
                     <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Type</label>
@@ -2116,7 +2552,7 @@ export default function App() {
               </button>
               <div className="relative h-64">
                 <SafeImage 
-                  src={(data as any).managerMessageImage || "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=40&w=800"} 
+                  src={(data as any).managerMessageImage || "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=12&w=350"} 
                   alt="PNG Nature" 
                   className="w-full h-full object-cover"
                 />
@@ -2137,16 +2573,59 @@ export default function App() {
               </div>
               <div className="p-10 text-center">
                 <span className="text-emerald-light uppercase font-bold tracking-widest text-[10px]">A Message From Management</span>
-                <h3 className="font-serif text-3xl font-bold text-emerald-dark mt-2 mb-4 italic">"Transforming Lives Through Access"</h3>
-                <p className="text-emerald-dark/60 text-sm leading-relaxed mb-8">
-                  Welcome to our new digital hub. This platform represents our commitment to transparency and efficiency as we bring the Word of God to every corner of PNG. Thank you for your continued support in our strategic priorities.
-                </p>
-                <button 
-                  onClick={() => setShowManagerMessage(false)}
-                  className="bg-emerald-dark text-sand w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-emerald transition-colors"
-                >
-                  Close Message
-                </button>
+                {isAdmin ? (
+                  <div className="space-y-4 mt-2 block text-left">
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest block mb-1">Title</label>
+                      <input 
+                        value={managerTitleInput}
+                        onChange={(e) => setManagerTitleInput(e.target.value)}
+                        className="w-full bg-emerald/5 border border-emerald/10 p-2.5 rounded-xl font-serif text-emerald-dark font-bold text-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest block mb-1">Message Content</label>
+                      <textarea 
+                        value={managerMessageInput}
+                        onChange={(e) => setManagerMessageInput(e.target.value)}
+                        rows={5}
+                        className="w-full bg-emerald/5 border border-emerald/10 p-3 rounded-xl text-emerald-dark/80 text-xs leading-relaxed resize-none"
+                      />
+                    </div>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await setDoc(doc(db, 'configs', 'main'), { 
+                            managerTitle: managerTitleInput, 
+                            managerMessage: managerMessageInput 
+                          }, { merge: true });
+                          setManagerStatus("Manager message updated successfully.");
+                          setShowManagerMessage(false);
+                        } catch (err) {
+                          handleFirestoreError(err, OperationType.UPDATE, 'configs/main');
+                        }
+                      }}
+                      className="w-full bg-emerald text-sand py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-light transition-all shadow-md mt-2"
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <h3 className="font-serif text-3xl font-bold text-emerald-dark mt-2 mb-4 italic">
+                      "{(data as any).managerTitle || "Transforming Lives Through Access"}"
+                    </h3>
+                    <p className="text-emerald-dark/60 text-sm leading-relaxed mb-8">
+                      {(data as any).managerMessage || "Welcome to our new digital hub. This platform represents our commitment to transparency and efficiency as we bring the Word of God to every corner of PNG. Thank you for your continued support in our strategic priorities."}
+                    </p>
+                    <button 
+                      onClick={() => setShowManagerMessage(false)}
+                      className="bg-emerald-dark text-sand w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-emerald transition-colors"
+                    >
+                      Close Message
+                    </button>
+                  </>
+                )}
               </div>
             </motion.div>
           </motion.div>
@@ -2298,7 +2777,7 @@ export default function App() {
                           }
 
                           // Sync Hero with Lush Jungle
-                          await setDoc(doc(db, 'configs', 'main'), { heroImage: 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=40&w=1200' }, { merge: true });
+                          await setDoc(doc(db, 'configs', 'main'), { heroImage: 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=15&w=600' }, { merge: true });
                           
                           setManagerStatus("Mission Resources & Cultural Assets synchronized successfully.");
                         } catch (e) {
@@ -2663,6 +3142,53 @@ export default function App() {
                     Save Changes
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Video Lightbox Player Modal */}
+      <AnimatePresence>
+        {playingVideo && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPlayingVideo(null)}
+              className="absolute inset-0 bg-black/90 backdrop-blur-md"
+            ></motion.div>
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-black w-full max-w-4xl aspect-video rounded-3xl overflow-hidden shadow-2xl border border-white/10 z-10"
+            >
+              <button 
+                onClick={() => setPlayingVideo(null)}
+                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center text-white hover:bg-emerald hover:text-sand transition-all z-20 text-base"
+              >
+                <X size={20} />
+              </button>
+              
+              <div className="w-full h-full">
+                {playingVideo.videoData ? (
+                  <video 
+                    src={playingVideo.videoData} 
+                    controls 
+                    autoPlay 
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <iframe 
+                    src={getEmbedUrl(playingVideo.url)}
+                    title={playingVideo.title}
+                    className="w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                )}
               </div>
             </motion.div>
           </div>
