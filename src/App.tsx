@@ -278,6 +278,39 @@ function getEmbedUrl(url: string): string {
   return url;
 }
 
+const compressImage = (base64Str: string, maxWidth = 1000, maxHeight = 750): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.65)); // Highly compressed and light JPEG 
+      } else {
+        resolve(base64Str);
+      }
+    };
+    img.onerror = () => resolve(base64Str);
+  });
+};
+
 const Hero = ({ backgroundImage, isAdmin, isRoot, onImageChange }: { backgroundImage: string; isAdmin: boolean; isRoot: boolean; onImageChange?: (base64: string) => void }) => (
   <section 
     className="relative h-screen flex flex-col justify-center items-center overflow-hidden bg-black"
@@ -300,7 +333,15 @@ const Hero = ({ backgroundImage, isAdmin, isRoot, onImageChange }: { backgroundI
             const file = e.target.files?.[0];
             if (file) {
               const reader = new FileReader();
-              reader.onloadend = () => onImageChange(reader.result as string);
+              reader.onloadend = async () => {
+                try {
+                  const rawBase64 = reader.result as string;
+                  const compressed = await compressImage(rawBase64);
+                  onImageChange(compressed);
+                } catch (err) {
+                  console.error("Hero image compression failed:", err);
+                }
+              };
               reader.readAsDataURL(file);
             }
           }} 
@@ -382,6 +423,8 @@ export default function App() {
   const [newReport, setNewReport] = useState({ title: '', category: '', count: 0 });
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [projectEditForm, setProjectEditForm] = useState<Project | null>(null);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [showReportFilesModal, setShowReportFilesModal] = useState(false);
   const [isAddingProject, setIsAddingProject] = useState(false);
@@ -433,6 +476,20 @@ export default function App() {
       img.src = url;
     });
   }, []);
+
+  // Synchronize dynamic project staging edits with the local draft state
+  useEffect(() => {
+    if (showProjectModal && selectedProject) {
+      if (!projectEditForm || projectEditForm.id !== selectedProject.id) {
+        const liveProject = data.projects.find(p => p.id === selectedProject.id) || selectedProject;
+        setProjectEditForm({ ...liveProject });
+        setSaveSuccessMessage(null);
+      }
+    } else {
+      setProjectEditForm(null);
+      setSaveSuccessMessage(null);
+    }
+  }, [showProjectModal, selectedProject]);
 
   const ROOT_ADMIN = 'taewan_yang@gbt.or.kr';
 
@@ -817,39 +874,6 @@ export default function App() {
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `projects/${id}`);
     }
-  };
-
-  const compressImage = (base64Str: string, maxWidth = 1000, maxHeight = 750): Promise<string> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.src = base64Str;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.65)); // Highly compressed and light JPEG 
-        } else {
-          resolve(base64Str);
-        }
-      };
-      img.onerror = () => resolve(base64Str);
-    });
   };
 
   // Helper for image upload (Base64 + Automatic Client-Side Compression)
@@ -1559,27 +1583,18 @@ export default function App() {
               <div className="space-y-6 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-2">
                    <h5 className="font-serif text-2xl font-bold text-emerald-dark tracking-tight">
-                     {(() => {
-                        const monthEvents = data.schedule?.filter(e => {
-                          const eventDate = new Date(e.date);
-                          return eventDate.getMonth() === viewDate.getMonth() && eventDate.getFullYear() === viewDate.getFullYear();
-                        }) || [];
-                        return monthEvents.length > 0 ? 'Project Activity Blocks' : 'General Department Schedule';
-                     })()}
+                     General Department Schedule
                    </h5>
                    <div className="w-10 h-10 rounded-full bg-emerald/5 flex items-center justify-center text-emerald">
                       <Calendar size={18} />
                    </div>
                 </div>
-                <div className="space-y-4 overflow-y-auto pr-2 no-scrollbar flex-grow min-h-[400px]">
+                <div className="space-y-4 overflow-y-auto pr-2 no-scrollbar flex-grow max-h-[520px] min-h-[400px]">
                   {(() => {
-                    const monthEvents = data.schedule?.filter(e => {
-                      const eventDate = new Date(e.date);
-                      return eventDate.getMonth() === viewDate.getMonth() && eventDate.getFullYear() === viewDate.getFullYear();
-                    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) || [];
+                    const allEvents = [...(data.schedule || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-                    if (monthEvents.length > 0) {
-                      return monthEvents.map((event, idx) => (
+                    if (allEvents.length > 0) {
+                      return allEvents.map((event, idx) => (
                         <motion.div 
                           key={event.id}
                           initial={{ opacity: 0, x: 20 }}
@@ -1653,7 +1668,7 @@ export default function App() {
                       return (
                         <div className="py-20 text-center bg-white/30 rounded-[2rem] border-2 border-dashed border-emerald/5">
                           <p className="text-emerald/20 font-serif italic text-sm">No special project blocks this month.</p>
-                          <p className="text-[9px] uppercase font-bold text-emerald/10 tracking-widest mt-2">Standard operations active</p>
+                          <p className="text-[9px] uppercase font-bold text-emerald/10 tracking-widest mt-2 font-mono">Standard operations active</p>
                         </div>
                       );
                     }
@@ -2100,7 +2115,7 @@ export default function App() {
                 <div className="w-full md:w-2/5 relative h-64 md:h-full group">
                   <div className="absolute inset-0">
                     <SafeImage 
-                      src={activeProjectDetail.image} 
+                      src={projectEditForm ? projectEditForm.image : activeProjectDetail.image} 
                       alt={activeProjectDetail.name} 
                       className="w-full h-full object-cover"
                     />
@@ -2114,7 +2129,9 @@ export default function App() {
                           type="file" 
                           className="hidden" 
                           accept="image/*" 
-                          onChange={(e) => handleFileUpload(e, (base64) => updateProject(activeProjectDetail.id, { image: base64 }))} 
+                          onChange={(e) => handleFileUpload(e, (base64) => {
+                            if (projectEditForm) setProjectEditForm({ ...projectEditForm, image: base64 });
+                          })} 
                         />
                       </label>
                     )}
@@ -2123,36 +2140,42 @@ export default function App() {
                 </div>
 
                 <div className="flex-1 p-8 md:p-12 overflow-y-auto">
-                  {isAdmin ? (
+                  {isAdmin && projectEditForm ? (
                     <div className="space-y-6">
+                      {saveSuccessMessage && (
+                        <div className="bg-emerald-dark text-sand p-4 rounded-3xl text-center shadow-xl border border-emerald/20 flex items-center justify-center gap-2 mb-4">
+                          <CheckCircle2 size={16} className="text-emerald-light animate-pulse" />
+                          <span className="text-xs font-black uppercase tracking-widest">{saveSuccessMessage}</span>
+                        </div>
+                      )}
                       <div>
                         <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Project Title</label>
                         <input 
-                          value={activeProjectDetail.name}
-                          onChange={(e) => updateProject(activeProjectDetail.id, { name: e.target.value })}
+                          value={projectEditForm.name}
+                          onChange={(e) => setProjectEditForm({ ...projectEditForm, name: e.target.value })}
                           className="w-full bg-emerald/5 border border-emerald/10 p-4 rounded-2xl text-2xl font-serif font-bold text-emerald-dark"
                         />
                       </div>
                       <div>
                         <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Project Overview (Comprehensive)</label>
                         <textarea 
-                          value={activeProjectDetail.description}
-                          onChange={(e) => updateProject(activeProjectDetail.id, { description: e.target.value })}
+                          value={projectEditForm.description}
+                          onChange={(e) => setProjectEditForm({ ...projectEditForm, description: e.target.value })}
                           className="w-full bg-emerald/5 border border-emerald/10 p-4 rounded-2xl text-sm leading-relaxed text-emerald-dark/70 h-32 resize-none"
                         />
                       </div>
                       <div>
                         <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Financial Status Progress (%)</label>
                         <ProjectProgressInput 
-                          initialProgress={activeProjectDetail.progress} 
-                          onSave={(val) => updateProject(activeProjectDetail.id, { progress: val })}
+                          initialProgress={projectEditForm.progress} 
+                          onSave={(val) => setProjectEditForm({ ...projectEditForm, progress: val })}
                         />
                       </div>
                       <div>
                         <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">How to Support (Methods & Sponsorship)</label>
                         <textarea 
-                          value={activeProjectDetail.howToSupport || ''}
-                          onChange={(e) => updateProject(activeProjectDetail.id, { howToSupport: e.target.value })}
+                          value={projectEditForm.howToSupport || ''}
+                          onChange={(e) => setProjectEditForm({ ...projectEditForm, howToSupport: e.target.value })}
                           placeholder="Provide details on how donors can sponsor this specific initiative..."
                           className="w-full bg-emerald/10 border border-emerald/20 p-4 rounded-2xl text-sm leading-relaxed text-emerald h-32 resize-none"
                         />
@@ -2160,12 +2183,49 @@ export default function App() {
                       <div>
                         <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Latest Status Update</label>
                         <textarea 
-                          value={activeProjectDetail.lastStatus}
-                          onChange={(e) => updateProject(activeProjectDetail.id, { lastStatus: e.target.value })}
+                          value={projectEditForm.lastStatus}
+                          onChange={(e) => setProjectEditForm({ ...projectEditForm, lastStatus: e.target.value })}
                           className="w-full bg-emerald/5 border border-emerald/10 p-4 rounded-2xl text-xs italic text-emerald leading-relaxed h-20 resize-none"
                         />
                       </div>
+                      
+                      {/* 최종 확인 및 적용 버튼 */}
+                      <div className="pt-6 border-t border-emerald/10 grid grid-cols-2 gap-4">
+                        <button 
+                          onClick={async () => {
+                            try {
+                              setSaveSuccessMessage("Applying changes safely to Firestore...");
+                              await updateProject(projectEditForm.id, projectEditForm);
+                              setSaveSuccessMessage("최종 저장 완료! 새로고침 후에도 유지됩니다.");
+                              setTimeout(() => {
+                                setSaveSuccessMessage(null);
+                                setShowProjectModal(false);
+                              }, 1800);
+                            } catch (err) {
+                              setSaveSuccessMessage("저장 실패. 네트워크 오류.");
+                            }
+                          }}
+                          className="bg-emerald text-sand py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-emerald-light transition-all shadow-lg flex items-center justify-center gap-2"
+                        >
+                          <Check size={16} /> 최종 확인 및 적용
+                        </button>
+                        <button 
+                          onClick={() => {
+                            const liveProject = data.projects.find(p => p.id === selectedProject.id) || selectedProject;
+                            setProjectEditForm({ ...liveProject });
+                            setSaveSuccessMessage("변경사항이 모두 취소되었습니다.");
+                            setTimeout(() => {
+                              setSaveSuccessMessage(null);
+                            }, 1500);
+                          }}
+                          className="bg-sand border border-emerald/20 text-emerald py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-emerald/5 transition-all flex items-center justify-center gap-2"
+                        >
+                          <X size={16} /> 변경사항 취소
+                        </button>
+                      </div>
                     </div>
+                  ) : isAdmin ? (
+                    <div className="py-20 text-center font-serif italic text-emerald/40 text-sm">Preparing administrator environment...</div>
                   ) : (
                     <div className="space-y-10">
                       <div>
