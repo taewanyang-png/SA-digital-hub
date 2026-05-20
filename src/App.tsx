@@ -164,6 +164,98 @@ const SafeImage = ({ src, alt, className }: { src: string; alt: string; classNam
   />
 );
 
+const ProjectProgressInput = ({ 
+  initialProgress, 
+  onSave 
+}: { 
+  initialProgress: number; 
+  onSave: (val: number) => void;
+}) => {
+  const [localVal, setLocalVal] = useState(initialProgress);
+
+  // Sync with prop changes (e.g., if loaded from database)
+  useEffect(() => {
+    setLocalVal(initialProgress);
+  }, [initialProgress]);
+
+  const handleChange = (val: number) => {
+    const clamped = Math.min(100, Math.max(0, val));
+    setLocalVal(clamped);
+    onSave(clamped);
+  };
+
+  return (
+    <div className="flex items-center gap-4 bg-emerald/5 p-4 rounded-2xl border border-emerald/10">
+      <input 
+        type="range"
+        min="0"
+        max="100"
+        value={localVal}
+        onChange={(e) => handleChange(Number(e.target.value))}
+        className="flex-1 accent-emerald h-1.5 rounded-full cursor-pointer"
+      />
+      <div className="flex items-center gap-1">
+        <input 
+          type="number"
+          min="0"
+          max="100"
+          value={localVal}
+          onChange={(e) => handleChange(Number(e.target.value))}
+          className="w-16 bg-white border border-emerald/20 text-emerald-dark font-bold text-xs rounded-xl px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald text-center font-mono"
+        />
+        <span className="text-xs font-bold text-emerald-dark">%</span>
+      </div>
+    </div>
+  );
+};
+
+const CompactProjectProgressInput = ({ 
+  initialProgress, 
+  onSave 
+}: { 
+  initialProgress: number; 
+  onSave: (val: number) => void;
+}) => {
+  const [localVal, setLocalVal] = useState(initialProgress);
+
+  useEffect(() => {
+    setLocalVal(initialProgress);
+  }, [initialProgress]);
+
+  const handleChange = (val: number) => {
+    const clamped = Math.min(100, Math.max(0, val));
+    setLocalVal(clamped);
+    onSave(clamped);
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-[9px] font-bold text-emerald/40 uppercase tracking-widest block">Financial Status</span>
+        <div className="flex items-center gap-2">
+          <input 
+            type="number"
+            min="0"
+            max="100"
+            value={localVal}
+            onChange={(e) => handleChange(Number(e.target.value))}
+            className="w-12 bg-emerald/5 border border-emerald/10 text-emerald-dark font-bold text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald text-center font-mono"
+          />
+          <span className="text-[10px] font-bold text-emerald">%</span>
+        </div>
+      </div>
+      <input 
+        type="range"
+        min="0"
+        max="100"
+        value={localVal}
+        onChange={(e) => handleChange(Number(e.target.value))}
+        className="w-full accent-emerald h-1.5 rounded-full cursor-pointer"
+      />
+    </div>
+  );
+};
+
 function getEmbedUrl(url: string): string {
   if (!url) return '';
   if (url.includes('/embed/')) return url;
@@ -1206,30 +1298,10 @@ export default function App() {
                   
                   {isAdmin ? (
                     <div className="pt-6 border-t border-emerald/5 mt-auto space-y-4" onClick={(e) => e.stopPropagation()}>
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-[9px] font-bold text-emerald/40 uppercase tracking-widest block">Financial Status</span>
-                          <div className="flex items-center gap-2">
-                            <input 
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={project.progress}
-                              onChange={(e) => updateProject(project.id, { progress: Math.min(100, Math.max(0, Number(e.target.value))) })}
-                              className="w-12 bg-emerald/5 border border-emerald/10 text-emerald-dark font-bold text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald text-center font-mono"
-                            />
-                            <span className="text-[10px] font-bold text-emerald">%</span>
-                          </div>
-                        </div>
-                        <input 
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={project.progress}
-                          onChange={(e) => updateProject(project.id, { progress: Number(e.target.value) })}
-                          className="w-full accent-emerald h-1.5 rounded-full cursor-pointer"
-                        />
-                      </div>
+                      <CompactProjectProgressInput 
+                        initialProgress={project.progress} 
+                        onSave={(val) => updateProject(project.id, { progress: val })}
+                      />
                     </div>
                   ) : (
                     <div className="pt-6 border-t border-emerald/5 mt-auto flex items-center justify-between">
@@ -2055,27 +2127,10 @@ export default function App() {
                       </div>
                       <div>
                         <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">Financial Status Progress (%)</label>
-                        <div className="flex items-center gap-4 bg-emerald/5 p-4 rounded-2xl border border-emerald/10">
-                          <input 
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={activeProjectDetail.progress}
-                            onChange={(e) => updateProject(activeProjectDetail.id, { progress: Number(e.target.value) })}
-                            className="flex-1 accent-emerald h-1.5 rounded-full cursor-pointer"
-                          />
-                          <div className="flex items-center gap-1">
-                            <input 
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={activeProjectDetail.progress}
-                              onChange={(e) => updateProject(activeProjectDetail.id, { progress: Math.min(100, Math.max(0, Number(e.target.value))) })}
-                              className="w-16 bg-white border border-emerald/20 text-emerald-dark font-bold text-xs rounded-xl px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald text-center font-mono"
-                            />
-                            <span className="text-xs font-bold text-emerald-dark">%</span>
-                          </div>
-                        </div>
+                        <ProjectProgressInput 
+                          initialProgress={activeProjectDetail.progress} 
+                          onSave={(val) => updateProject(activeProjectDetail.id, { progress: val })}
+                        />
                       </div>
                       <div>
                         <label className="text-[10px] uppercase font-bold text-emerald/40 tracking-widest mb-2 block">How to Support (Methods & Sponsorship)</label>
