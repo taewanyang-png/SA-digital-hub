@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { AppData, Equipment, Project, Report, AdminRequest, AppFile, VideoBlock, ScheduleEvent } from './types';
 import { INITIAL_DATA } from './constants';
+import { EnglishDatePicker } from './components/EnglishDatePicker';
 import { auth, db, signInWithGoogle, handleFirestoreError, OperationType } from './lib/firebase';
 import { 
   collection, 
@@ -1510,7 +1511,9 @@ export default function App() {
                              }`}>
                                 {event.type}
                              </div>
-                             <p className="text-[10px] font-bold text-emerald/40 font-mono">{new Date(event.date).toLocaleDateString('en-GB')}</p>
+                             <p className="text-[10px] font-bold text-emerald/40 font-mono">
+                               {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                             </p>
                           </div>
                           {isAdmin ? (
                             <div className="mb-2">
@@ -1673,29 +1676,27 @@ export default function App() {
                       </td>
                       <td className="py-5">
                         {isAdmin ? (
-                          <input 
-                            type="date"
+                          <EnglishDatePicker 
                             value={item.checkoutDate || ''}
-                            onChange={(e) => updateEquipment(item.id, { checkoutDate: e.target.value })}
-                            className="bg-sand/40 text-[10px] font-bold px-2 py-1 rounded focus:outline-none border border-emerald/5"
+                            onChange={(dateStr) => updateEquipment(item.id, { checkoutDate: dateStr })}
+                            placeholder="No Date"
                           />
                         ) : (
                           <span className="text-xs text-emerald-dark/60 font-medium">
-                            {item.checkoutDate ? new Date(item.checkoutDate).toLocaleDateString('en-GB') : 'Not Tracked'}
+                            {item.checkoutDate ? new Date(item.checkoutDate).toLocaleDateString('en-US') : 'Not Tracked'}
                           </span>
                         )}
                       </td>
                       <td className="py-5">
                         {isAdmin ? (
-                          <input 
-                            type="date"
+                          <EnglishDatePicker 
                             value={item.expectedReturnDate || ''}
-                            onChange={(e) => updateEquipment(item.id, { expectedReturnDate: e.target.value })}
-                            className="bg-sand/40 text-[10px] font-bold px-2 py-1 rounded focus:outline-none border border-emerald/5"
+                            onChange={(dateStr) => updateEquipment(item.id, { expectedReturnDate: dateStr })}
+                            placeholder="No Date"
                           />
                         ) : (
                           <span className="text-xs text-orange-600/80 font-bold">
-                            {item.expectedReturnDate ? new Date(item.expectedReturnDate).toLocaleDateString('en-GB') : '--'}
+                            {item.expectedReturnDate ? new Date(item.expectedReturnDate).toLocaleDateString('en-US') : '--'}
                           </span>
                         )}
                       </td>
@@ -2878,7 +2879,7 @@ export default function App() {
                 <div className="relative z-10">
                   <span className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-bold uppercase tracking-widest mb-4 inline-block">{selectedEvent.type}</span>
                   <h3 className="font-serif text-3xl font-bold mb-2">{selectedEvent.title}</h3>
-                  <p className="text-sand/70 text-sm font-mono">{new Date(selectedEvent.date).toLocaleDateString('en-GB')}</p>
+                  <p className="text-sand/70 text-sm font-semibold">{new Date(selectedEvent.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                 </div>
               </div>
               <div className="p-10">
