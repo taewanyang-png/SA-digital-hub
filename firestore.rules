@@ -1,0 +1,85 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Helper Primatives
+    function isSignedIn() { return request.auth != null; }
+    function isEmailVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isAdmin() { return isEmailVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function isRoot() { return isEmailVerified() && request.auth.token.email == 'taewan_yang@gbt.or.kr'; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // Validation Helpers
+    function isValidProject(data) {
+      return data.id is string && data.name is string && data.name.size() > 0 &&
+             data.description is string && data.progress is number &&
+             data.lastStatus is string && data.image is string;
+    }
+    function isValidReport(data) {
+      return data.id is string && data.title is string && data.category is string &&
+             data.count is number && data.date is string && data.image is string;
+    }
+    function isValidEquipment(data) {
+      return data.id is string && data.name is string && data.type is string &&
+             data.status in ['Available', 'In-use'] && data.totalQuantity is number;
+    }
+    function isValidEvent(data) {
+      return data.id is string && data.title is string && data.date is string &&
+             data.type in ['milestone', 'deadline', 'meeting', 'workshop'];
+    }
+    function isValidRequest(data) {
+      return data.email is string && data.timestamp is string && 
+             data.status in ['pending', 'approved', 'rejected'] &&
+             data.email == request.auth.token.email; // Self-request integrity
+    }
+
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Collections
+    match /projects/{projectId} {
+      allow read: if true;
+      allow write: if isAdmin() || isRoot();
+    }
+
+    match /reports/{reportId} {
+      allow read: if true;
+      allow write: if isAdmin() || isRoot();
+    }
+
+    match /equipment/{equipmentId} {
+      allow read: if true;
+      allow write: if isAdmin() || isRoot();
+    }
+
+    match /schedule/{eventId} {
+      allow read: if true;
+      allow write: if isAdmin() || isRoot();
+    }
+
+    match /videos/{videoId} {
+      allow read: if true;
+      allow write: if isAdmin() || isRoot();
+    }
+
+    match /admin_requests/{requestId} {
+      allow read: if isAdmin() || isRoot() || (isSignedIn() && existing().email == request.auth.token.email);
+      allow create: if isEmailVerified() && isValidRequest(incoming());
+      allow update: if (isAdmin() || isRoot()) && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if isAdmin() || isRoot();
+    }
+
+    match /configs/{configId} {
+      allow read: if true;
+      allow write: if isAdmin() || isRoot();
+    }
+
+    match /admins/{adminUid} {
+      allow read: if isSignedIn();
+      allow write: if isRoot();
+    }
+  }
+}

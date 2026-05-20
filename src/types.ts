@@ -86,4 +86,7 @@ export interface AppData {
   footer: FooterInfo;
   authorizedCoAdmins: string[];
   pendingRequests: AdminRequest[];
+  heroImage?: string;
+  managerMessageImage?: string;
+  footerImage?: string;
 }

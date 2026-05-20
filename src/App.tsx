@@ -33,77 +33,140 @@ import {
   FileUp,
   Image as ImageIcon,
   Play,
+  Check,
+  Star,
+  Database,
+  RefreshCw,
   Video
 } from 'lucide-react';
 import { AppData, Equipment, Project, Report, AdminRequest, AppFile, VideoBlock, ScheduleEvent } from './types';
 import { INITIAL_DATA } from './constants';
+import { auth, db, signInWithGoogle, handleFirestoreError, OperationType } from './lib/firebase';
+import { 
+  collection, 
+  doc, 
+  onSnapshot, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  addDoc,
+  query,
+  orderBy,
+  getDoc,
+  serverTimestamp,
+  where,
+  getDocs
+} from 'firebase/firestore';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 // --- Components ---
 
-const Navbar = ({ isAdmin, onToggleAdmin, userType }: { isAdmin: boolean; onToggleAdmin: () => void; userType: 'Root' | 'Co-Admin' | 'Guest' }) => (
-  <nav className="fixed top-0 w-full z-50 bg-sand/80 backdrop-blur-md border-b border-emerald/10 px-6 py-4 flex justify-between items-center">
+const Navbar = ({ isAdmin, isRoot, user, onToggleAdmin, userType, pendingRequestsCount }: { 
+  isAdmin: boolean; 
+  isRoot: boolean;
+  user: User | null; 
+  onToggleAdmin: () => void; 
+  userType: 'Root' | 'Co-Admin' | 'Guest';
+  pendingRequestsCount: number;
+}) => (
+  <nav className="fixed top-0 w-full z-[100] bg-sand/80 backdrop-blur-md border-b border-emerald/10 px-6 py-4 flex justify-between items-center">
     <div className="flex items-center gap-3">
-      <div className="w-10 h-10 bg-emerald rounded-full flex items-center justify-center text-sand font-serif font-bold text-xl">S</div>
+      <div className="w-10 h-10 bg-emerald rounded-full flex items-center justify-center text-sand font-serif font-bold text-xl relative overflow-hidden group">
+        <SafeImage 
+          src="https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800" 
+          alt="Logo Background" 
+          className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-125 transition-transform"
+        />
+        <span className="relative z-10 drop-shadow-md">S</span>
+      </div>
       <div>
         <h1 className="font-serif font-bold tracking-tight text-emerald-dark leading-tight uppercase text-sm md:text-base">Scripture Access</h1>
         <p className="text-[10px] uppercase tracking-widest text-emerald/60 font-semibold">Digital Hub</p>
       </div>
     </div>
-    <div className="flex items-center gap-3">
-      {isAdmin && (
-        <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-emerald/5 rounded-full border border-emerald/10">
-          <ShieldCheck size={12} className="text-emerald" />
-          <span className="text-[10px] font-bold uppercase text-emerald tracking-wider">{userType} Access</span>
+    <div className="flex items-center gap-4">
+      {user && (
+        <div className="hidden lg:flex flex-col items-end">
+          <span className="text-[10px] font-bold text-emerald-dark/60 uppercase tracking-tighter">{user.email}</span>
+          <span className="text-[8px] font-bold text-emerald uppercase bg-emerald/5 px-2 py-0.5 rounded-full tracking-widest leading-none">{userType} Access</span>
         </div>
+      )}
+      {isRoot && (
+        <button 
+          onClick={() => (window as any).toggleAdminManagement && (window as any).toggleAdminManagement()}
+          className="p-2 border border-emerald/20 rounded-xl text-emerald hover:bg-emerald/10 transition-all flex items-center gap-2 relative"
+          title="Manage Users & Access"
+        >
+          <Users size={16} />
+          {pendingRequestsCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white flex items-center justify-center rounded-full text-[8px] font-bold ring-2 ring-sand">
+              {pendingRequestsCount}
+            </span>
+          )}
+          <span className="hidden md:block text-[10px] font-bold uppercase tracking-wider">Access</span>
+        </button>
       )}
       <button 
         onClick={onToggleAdmin}
         className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all ${
-          isAdmin 
+          user 
             ? 'bg-emerald text-sand shadow-lg shadow-emerald/20' 
             : 'bg-emerald/10 text-emerald hover:bg-emerald/20'
         }`}
       >
-        {isAdmin ? <LogOut size={14} /> : <Settings size={14} />}
-        {isAdmin ? 'Exit Admin' : 'Admin Mode'}
+        {user ? <LogOut size={14} /> : <ShieldCheck size={14} />}
+        {user ? 'Sign Out' : 'Admin Sign In'}
       </button>
     </div>
   </nav>
 );
 
-const SafeImage = ({ src, alt, className, referrerPolicy }: { src: string; alt: string; className?: string; referrerPolicy?: React.HTMLAttributeReferrerPolicy }) => (
+const SafeImage = ({ src, alt, className }: { src: string; alt: string; className?: string }) => (
   <img 
-    src={src || 'https://images.unsplash.com/photo-1544923246-77307dd654ca?auto=format&fit=crop&q=80&w=1200'} 
+    src={src || 'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800'} 
     alt={alt}
-    className={`${className} object-cover`}
+    className={`${className} object-cover bg-neutral-100`}
     style={{ objectPosition: 'center', imageRendering: 'auto' }}
-    referrerPolicy="no-referrer"
+    referrerPolicy="strict-origin-when-cross-origin"
     loading="eager"
     onError={(e) => {
-      (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544923246-77307dd654ca?auto=format&fit=crop&q=80&w=1200';
+      const target = e.currentTarget as HTMLImageElement;
+      if (!target.src.includes('photo-1523733566457-60437fc0582d')) {
+        target.src = 'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800';
+      }
     }}
   />
 );
 
-const Hero = () => (
+const Hero = ({ backgroundImage, isAdmin, isRoot, onImageChange }: { backgroundImage: string; isAdmin: boolean; isRoot: boolean; onImageChange?: (base64: string) => void }) => (
   <section 
-    className="relative h-screen flex flex-col justify-center items-center overflow-hidden"
-    /* --- MANUAL IMAGE SWAP --- */
+    className="relative h-screen flex flex-col justify-center items-center overflow-hidden bg-black"
     style={{ 
-      backgroundImage: "url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=1920')", 
+      backgroundImage: `url('${backgroundImage || 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=40&w=1200'}')`, 
       backgroundSize: 'cover', 
       backgroundPosition: 'center',
       imageRendering: 'auto'
     }}
   >
-    {/* Explicit image preloader for Hero section */}
-    <img 
-      src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=1920" 
-      className="hidden" 
-      loading="eager" 
-      alt="Preload" 
-      referrerPolicy="no-referrer"
-    />
+    {isAdmin && onImageChange && (
+      <label className="absolute top-24 right-6 z-50 bg-sand/80 backdrop-blur-md p-3 rounded-2xl border border-emerald/10 cursor-pointer hover:bg-emerald hover:text-sand transition-all shadow-xl group">
+        <ImageIcon size={20} className="group-hover:scale-110 transition-transform" />
+        <span className="hidden group-hover:block absolute right-12 top-2 bg-emerald text-sand px-3 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap uppercase tracking-widest">Change Hero Image</span>
+        <input 
+          type="file" 
+          className="hidden" 
+          accept="image/*" 
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onloadend = () => onImageChange(reader.result as string);
+              reader.readAsDataURL(file);
+            }
+          }} 
+        />
+      </label>
+    )}
 
     {/* Optional Overlay for better text legibility */}
     <div className="absolute inset-0 bg-[#042f2e]/40 backdrop-blur-[1px] z-0"></div>
@@ -166,8 +229,11 @@ const ProgressRing = ({ progress, size = 60 }: { progress: number; size?: number
 // --- Main App Component ---
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isRoot, setIsRoot] = useState(false);
   const [data, setData] = useState<AppData>(INITIAL_DATA);
+  const [isOffline, setIsOffline] = useState(false);
   const [showManagerMessage, setShowManagerMessage] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [emailInput, setEmailInput] = useState('');
@@ -185,6 +251,8 @@ export default function App() {
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState<ScheduleEvent | null>(null);
   const [showParticipantModal, setShowParticipantModal] = useState(false);
+  const [managerStatus, setManagerStatus] = useState<string | null>(null);
+  const [showAdminManagement, setShowAdminManagement] = useState(false);
   const [eventForm, setEventForm] = useState<Partial<ScheduleEvent>>({
     title: '',
     date: new Date().toISOString().split('T')[0],
@@ -194,26 +262,24 @@ export default function App() {
   });
   const [participantInput, setParticipantInput] = useState('');
   const [footerForm, setFooterForm] = useState<AppData['footer']>(data.footer);
+  const [isUploading, setIsUploading] = useState(false);
   const [projectForm, setProjectForm] = useState<Partial<Project>>({
     name: '',
     description: '',
     progress: 0,
     lastStatus: '',
-    image: 'https://images.unsplash.com/photo-1544923246-77307dd654ca',
+    image: 'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800',
     howToSupport: ''
   });
 
   // Force image caching and pre-rendering
   useEffect(() => {
     const criticalImages = [
-      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=1920', // Hero
-      'https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&q=80&w=800',  // Healing/Care
-      'https://images.unsplash.com/photo-1516733725897-1aa73b87c8e8?auto=format&fit=crop&q=80&w=800',  // Culture/CMS
-      'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=800',  // Literacy/SALT
-      'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&q=80&w=800',  // Scripture
-      'https://images.unsplash.com/photo-1454165833767-02746d746734?auto=format&fit=crop&q=80&w=800',  // Report/Professional
-      'https://images.unsplash.com/photo-1523712999610-f77fbcfc3843?auto=format&fit=crop&q=80&w=800',  // Nature
-      'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&q=80&w=800'   // Formal/Document
+      'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=40&w=1200', // Hero
+      'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=40&w=800',  // Trauma
+      'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800',  // CMS
+      'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=40&w=800',  // SALT
+      'https://images.unsplash.com/photo-1564349683136-77e08bef1ed1?auto=format&fit=crop&q=40&w=800',  // Archive
     ];
     
     criticalImages.forEach(url => {
@@ -224,304 +290,510 @@ export default function App() {
 
   const ROOT_ADMIN = 'taewan_yang@gbt.or.kr';
 
+  // --- LocalStorage Helpers ---
+  const getPendingRequests = (): AdminRequest[] => {
+    const stored = localStorage.getItem('pendingAdminRequests');
+    return stored ? JSON.parse(stored) : [];
+  };
+
+  const getCoAdmins = (): string[] => {
+    const stored = localStorage.getItem('coAdmins');
+    return stored ? JSON.parse(stored) : [];
+  };
+
+  const savePendingRequests = (requests: AdminRequest[]) => {
+    localStorage.setItem('pendingAdminRequests', JSON.stringify(requests));
+    setData(prev => ({ ...prev, pendingRequests: requests }));
+  };
+
+  const saveCoAdmins = (emails: string[]) => {
+    localStorage.setItem('coAdmins', JSON.stringify(emails));
+    setData(prev => ({ ...prev, authorizedCoAdmins: emails }));
+  };
+
+  // --- Authentication Hook ---
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser && currentUser.email) {
+        const email = currentUser.email.toLowerCase();
+        const rootMatch = email === ROOT_ADMIN.toLowerCase();
+        const coAdmins = getCoAdmins();
+        const isAdminMatch = rootMatch || coAdmins.map(e => e.toLowerCase()).includes(email);
+        
+        setIsRoot(rootMatch);
+        setIsAdmin(isAdminMatch);
+        setCurrentUserEmail(email);
+      } else {
+        setIsAdmin(false);
+        setIsRoot(false);
+        setCurrentUserEmail(null);
+      }
+    });
+
+    // Initialize state from localStorage
+    setData(prev => ({
+      ...prev,
+      pendingRequests: getPendingRequests(),
+      authorizedCoAdmins: getCoAdmins()
+    }));
+
+    // Real-time Sync for Business Data (Firestore remains for content)
+    const seedDatabase = async () => {
+      try {
+        const projSnap = await getDocs(collection(db, 'projects'));
+        if (projSnap.empty) {
+          for (const proj of INITIAL_DATA.projects) {
+            await setDoc(doc(db, 'projects', proj.id), proj);
+          }
+        }
+        const repSnap = await getDocs(collection(db, 'reports'));
+        if (repSnap.empty) {
+          for (const rep of INITIAL_DATA.reports) {
+            await setDoc(doc(db, 'reports', rep.id), rep as any);
+          }
+        }
+        const schSnap = await getDocs(collection(db, 'schedule'));
+        if (schSnap.empty) {
+          for (const event of INITIAL_DATA.schedule) {
+            await setDoc(doc(db, 'schedule', event.id), event as any);
+          }
+        }
+        const eqSnap = await getDocs(collection(db, 'equipment'));
+        if (eqSnap.empty) {
+          for (const item of INITIAL_DATA.equipment) {
+            await setDoc(doc(db, 'equipment', item.id), item as any);
+          }
+        }
+        const vidSnap = await getDocs(collection(db, 'videos'));
+        if (vidSnap.empty) {
+          for (const vid of INITIAL_DATA.videos) {
+            await setDoc(doc(db, 'videos', vid.id), vid as any);
+          }
+        }
+      } catch (err) {
+        console.error("Seeding failed:", err);
+      }
+    };
+
+    const unsubProjects = onSnapshot(collection(db, 'projects'), (snap) => {
+      const items = snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Project));
+      if (items.length > 0) setData(prev => ({ ...prev, projects: items }));
+      else if (isRoot) seedDatabase();
+    });
+
+    const unsubReports = onSnapshot(collection(db, 'reports'), (snap) => {
+      const items = snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Report));
+      if (items.length > 0) setData(prev => ({ ...prev, reports: items }));
+    });
+
+    const unsubEquipment = onSnapshot(collection(db, 'equipment'), (snap) => {
+      const items = snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Equipment));
+      if (items.length > 0) setData(prev => ({ ...prev, equipment: items }));
+    });
+
+    const unsubSchedule = onSnapshot(collection(db, 'schedule'), (snap) => {
+      const items = snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ScheduleEvent));
+      if (items.length > 0) setData(prev => ({ ...prev, schedule: items }));
+    });
+
+    const unsubVideos = onSnapshot(collection(db, 'videos'), (snap) => {
+      const items = snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as VideoBlock));
+      if (items.length > 0) setData(prev => ({ ...prev, videos: items }));
+    });
+
+    const unsubConfig = onSnapshot(doc(db, 'configs', 'main'), (snap) => {
+      if (snap.exists()) {
+        const config = snap.data();
+        setData(prev => ({ 
+          ...prev, 
+          footer: config.footer || prev.footer,
+          heroImage: config.heroImage,
+          managerMessageImage: config.managerMessageImage,
+          footerImage: config.footerImage
+        }));
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      unsubProjects();
+      unsubReports();
+      unsubEquipment();
+      unsubSchedule();
+      unsubVideos();
+      unsubConfig();
+    };
+  }, []);
+
+  useEffect(() => {
+    (window as any).toggleAdminManagement = () => setShowAdminManagement(!showAdminManagement);
+  }, [showAdminManagement]);
+
   const getUserType = () => {
-    if (currentUserEmail === ROOT_ADMIN) return 'Root';
-    if (currentUserEmail && data.authorizedCoAdmins.includes(currentUserEmail)) return 'Co-Admin';
+    if (isRoot) return 'Root';
+    if (isAdmin) return 'Co-Admin';
     return 'Guest';
   };
 
   const userType = getUserType();
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('scripture_hub_data');
-    const savedUser = localStorage.getItem('scripture_hub_user');
-    const savedPending = localStorage.getItem('pendingAdminRequests');
-    const savedCoAdmins = localStorage.getItem('coAdmins');
-
-    if (saved) {
-      const parsedData = JSON.parse(saved);
-      // Force update stale footer defaults if they match previous placeholders
-      if (parsedData.footer.email === 'info@gbt.or.kr' || parsedData.footer.phone === '+675 7000 0000') {
-        parsedData.footer.email = INITIAL_DATA.footer.email;
-        parsedData.footer.phone = INITIAL_DATA.footer.phone;
+  const handleAdminToggle = async () => {
+    if (user) {
+      await auth.signOut();
+    } else {
+      try {
+        await signInWithGoogle();
+      } catch (e) {
+        console.error("Auth failed", e);
       }
-      
-      // Migration for broken or generic images
-      parsedData.projects.forEach((prj: any) => {
-        const matchingPrj = INITIAL_DATA.projects.find(p => p.id === prj.id);
-        if (matchingPrj && (
-          prj.image.includes('googleusercontent') || 
-          prj.image.includes('photo-1527613426441-4da17471b66d') ||
-          prj.image.includes('photo-1544923246-77307dd654ca')
-        )) {
-          prj.image = matchingPrj.image;
-        }
-      });
-      parsedData.reports.forEach((rep: any) => {
-        const matchingRep = INITIAL_DATA.reports.find(r => r.title === rep.title);
-        if (matchingRep && (
-          rep.image.includes('googleusercontent') || 
-          rep.image.includes('photo-1526721940322-1457342081ff') || 
-          rep.image.includes('photo-1454165833767-02746d746734') ||
-          rep.image.includes('photo-1516245834210-c4c142787335')
-        )) {
-          rep.image = matchingRep.image;
-        }
-      });
-      // Merge with specific localStorage keys if they exist
-      if (savedCoAdmins) parsedData.authorizedCoAdmins = JSON.parse(savedCoAdmins);
-      if (savedPending) parsedData.pendingRequests = JSON.parse(savedPending);
-      setData(parsedData);
-    }
-    
-    if (savedUser) {
-      setCurrentUserEmail(savedUser);
-      setIsAdmin(true);
-    }
-  }, []);
-
-  // Sync to localStorage on update
-  useEffect(() => {
-    localStorage.setItem('scripture_hub_data', JSON.stringify(data));
-    localStorage.setItem('pendingAdminRequests', JSON.stringify(data.pendingRequests));
-    localStorage.setItem('coAdmins', JSON.stringify(data.authorizedCoAdmins));
-  }, [data]);
-
-  const handleAdminToggle = () => {
-    if (isAdmin) {
-      setIsAdmin(false);
-      setCurrentUserEmail(null);
-      localStorage.removeItem('scripture_hub_user');
-    } else {
-      setShowAdminLogin(true);
     }
   };
 
-  const handleLogin = () => {
-    const coAdmins = JSON.parse(localStorage.getItem('coAdmins') || '[]');
-    if (emailInput === ROOT_ADMIN || coAdmins.includes(emailInput) || data.authorizedCoAdmins.includes(emailInput)) {
-      setCurrentUserEmail(emailInput);
-      setIsAdmin(true);
-      setShowAdminLogin(false);
-      localStorage.setItem('scripture_hub_user', emailInput);
-      setManagerStatus(`Logged in as ${emailInput === ROOT_ADMIN ? 'Root Admin' : 'Co-Admin'}`);
-    } else {
-      setManagerStatus('Access Denied: Email not in authorized list.');
+  const handleRequestAccess = async () => {
+    if (!user || !user.email) {
+      setManagerStatus('Please sign in with your mission email first.');
+      return;
     }
-  };
-
-  const [managerStatus, setManagerStatus] = useState<string | null>(null);
-  const [showAdminManagement, setShowAdminManagement] = useState(false);
-
-  const handleRequestAccess = () => {
-    if (!emailInput) return;
     
-    // Check if already pending
-    if (data.pendingRequests.some(r => r.email === emailInput)) {
-      setManagerStatus('Request already pending approval.');
+    const requests = getPendingRequests();
+    if (requests.some(r => r.email === user.email)) {
+      setManagerStatus('Your request is already pending review.');
+      return;
+    }
+
+    const coAdmins = getCoAdmins();
+    if (coAdmins.includes(user.email)) {
+      setManagerStatus('You are already an authorized co-admin.');
+      setIsAdmin(true);
       return;
     }
 
     const newRequest: AdminRequest = {
       id: Math.random().toString(36).substr(2, 9),
-      email: emailInput,
-      timestamp: new Date().toLocaleString()
+      email: user.email,
+      timestamp: new Date().toISOString()
     };
 
-    const updatedPending = [...data.pendingRequests, newRequest];
-    setData(prev => ({
-      ...prev,
-      pendingRequests: updatedPending
-    }));
-    
-    setManagerStatus('Admin request sent to Root for approval.');
-    setEmailInput('');
+    savePendingRequests([...requests, newRequest]);
+    setManagerStatus('Request Sent: Our Root Admin will review your access shortly.');
   };
 
   const approveRequest = (request: AdminRequest) => {
-    setData(prev => ({
-      ...prev,
-      authorizedCoAdmins: [...prev.authorizedCoAdmins, request.email],
-      pendingRequests: prev.pendingRequests.filter(r => r.id !== request.id)
-    }));
+    const requests = getPendingRequests();
+    const coAdmins = getCoAdmins();
+
+    savePendingRequests(requests.filter(r => r.id !== request.id));
+    
+    if (!coAdmins.includes(request.email)) {
+      saveCoAdmins([...coAdmins, request.email]);
+    }
+    
+    setManagerStatus(`Authorized: ${request.email} has been promoted to Co-Admin.`);
   };
 
   const deleteRequest = (id: string) => {
-    setData(prev => ({
-      ...prev,
-      pendingRequests: prev.pendingRequests.filter(r => r.id !== id)
-    }));
+    const requests = getPendingRequests();
+    savePendingRequests(requests.filter(r => r.id !== id));
+    setManagerStatus('Request declined and removed from queue.');
   };
 
-  // Admin Actions
-  const updateProject = (id: string, updates: Partial<Project>) => {
-    setData(prev => ({
-      ...prev,
-      projects: prev.projects.map(p => p.id === id ? { ...p, ...updates } : p)
-    }));
+  const revokeAdmin = (email: string) => {
+    const coAdmins = getCoAdmins();
+    saveCoAdmins(coAdmins.filter(e => e !== email));
+    setManagerStatus(`Revoked: Access for ${email} has been terminated.`);
+    
+    // Immediate elevation check if current user is revoked
+    if (user && user.email === email && !isRoot) {
+      setIsAdmin(false);
+    }
   };
 
-  const addProject = () => {
+  const grantDirectAccess = (email: string) => {
+    if (!email || !email.includes('@')) return;
+    const coAdmins = getCoAdmins();
+    const targetEmail = email.toLowerCase();
+    
+    if (!coAdmins.includes(targetEmail)) {
+      saveCoAdmins([...coAdmins, targetEmail]);
+      setManagerStatus(`Approved: ${targetEmail} is now an authorized Co-Admin.`);
+    } else {
+      setManagerStatus(`${targetEmail} is already authorized.`);
+    }
+  };
+
+  // --- Admin Actions (Firestore Sync) ---
+  const updateProject = async (id: string, updates: Partial<Project>) => {
+    try {
+      await updateDoc(doc(db, 'projects', id), updates);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `projects/${id}`);
+    }
+  };
+
+  const addProject = async () => {
     if (!projectForm.name) return;
+    const id = Math.random().toString(36).substr(2, 9);
     const project: Project = {
-      id: Math.random().toString(36).substr(2, 9),
+      id,
       name: projectForm.name || 'New Project',
       description: projectForm.description || '',
       progress: projectForm.progress || 0,
       lastStatus: projectForm.lastStatus || 'Project initiated.',
-      image: projectForm.image || 'https://images.unsplash.com/photo-1544923246-77307dd654ca',
-      howToSupport: projectForm.howToSupport || 'Contact your local project coordinator for more information on how to support this initiative.'
+      image: projectForm.image || 'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800',
+      howToSupport: projectForm.howToSupport || 'Contact coordinator for info.'
     };
-    setData(prev => ({ ...prev, projects: [...prev.projects, project] }));
-    setIsAddingProject(false);
-    setProjectForm({ name: '', description: '', progress: 0, lastStatus: '', image: 'https://images.unsplash.com/photo-1544923246-77307dd654ca', howToSupport: '' });
+    
+    try {
+      await setDoc(doc(db, 'projects', id), project);
+      setIsAddingProject(false);
+      setProjectForm({ name: '', description: '', progress: 0, lastStatus: '', image: 'https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800', howToSupport: '' });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, 'projects');
+    }
   };
 
-  const deleteProject = (id: string) => {
-    setData(prev => ({ ...prev, projects: prev.projects.filter(p => p.id !== id) }));
+  const deleteProject = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'projects', id));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `projects/${id}`);
+    }
   };
 
-  const addScheduleEvent = () => {
+  // Helper for image upload (Base64)
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, callback: (base64: string) => void) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1024 * 1024) {
+        setManagerStatus("File too large. Please use an image smaller than 1MB.");
+        return;
+      }
+      setIsUploading(true);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        callback(reader.result as string);
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const addScheduleEvent = async () => {
     if (!eventForm.title || !eventForm.date) return;
+    const id = Math.random().toString(36).substr(2, 9);
     const newEvent: ScheduleEvent = {
-      id: Math.random().toString(36).substr(2, 9),
+      id,
       title: eventForm.title,
       date: eventForm.date,
       type: eventForm.type as any || 'workshop',
       description: eventForm.description || '',
       participants: eventForm.participants || []
     };
-    setData(prev => ({ ...prev, schedule: [...(prev.schedule || []), newEvent] }));
-    setIsAddingEvent(false);
-    setEventForm({ title: '', date: new Date().toISOString().split('T')[0], type: 'workshop', description: '', participants: [] });
+    try {
+      await setDoc(doc(db, 'schedule', id), newEvent);
+      setIsAddingEvent(false);
+      setEventForm({ title: '', date: new Date().toISOString().split('T')[0], type: 'workshop', description: '', participants: [] });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, 'schedule');
+    }
   };
 
-  const deleteScheduleEvent = (id: string) => {
-    setData(prev => ({ ...prev, schedule: prev.schedule.filter(s => s.id !== id) }));
+  const deleteScheduleEvent = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'schedule', id));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `schedule/${id}`);
+    }
   };
   
-  const updateVideo = (id: string, updates: Partial<VideoBlock>) => {
-    setData(prev => ({
-      ...prev,
-      videos: prev.videos.map(v => v.id === id ? { ...v, ...updates } : v)
-    }));
+  const updateVideo = async (id: string, updates: Partial<VideoBlock>) => {
+    try {
+      await updateDoc(doc(db, 'videos', id), updates);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `videos/${id}`);
+    }
   };
 
-  const updateFooter = () => {
-    setData(prev => ({ ...prev, footer: footerForm }));
-    setShowFooterAdmin(false);
+  const updateFooter = async () => {
+    try {
+      await setDoc(doc(db, 'configs', 'main'), { footer: footerForm }, { merge: true });
+      setShowFooterAdmin(false);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, 'configs/main');
+    }
   };
 
-  const addFileToReport = (reportId: string, fileName: string, fileType: 'pdf' | 'docx') => {
+  const addFileToReport = async (reportId: string, fileName: string, fileType: 'pdf' | 'docx') => {
     const newFile: AppFile = {
       id: Math.random().toString(36).substr(2, 9),
       name: fileName,
       type: fileType,
       date: new Date().toISOString().split('T')[0]
     };
-    setData(prev => ({
-      ...prev,
-      reports: prev.reports.map(r => r.id === reportId ? { 
-        ...r, 
-        files: [...r.files, newFile],
-        count: r.files.length + 1
-      } : r)
-    }));
-    // Update selectedReport if open
-    if (selectedReport && selectedReport.id === reportId) {
-      setSelectedReport(prev => prev ? ({
-        ...prev,
-        files: [...prev.files, newFile],
-        count: prev.files.length + 1
-      }) : null);
+    
+    const report = data.reports.find(r => r.id === reportId);
+    if (!report) return;
+
+    try {
+      const updatedFiles = [...report.files, newFile];
+      await updateDoc(doc(db, 'reports', reportId), {
+        files: updatedFiles,
+        count: updatedFiles.length
+      });
+      if (selectedReport && selectedReport.id === reportId) {
+        setSelectedReport({ ...report, files: updatedFiles, count: updatedFiles.length });
+      }
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `reports/${reportId}`);
     }
   };
 
-  const deleteFileFromReport = (reportId: string, fileId: string) => {
-    setData(prev => ({
-      ...prev,
-      reports: prev.reports.map(r => r.id === reportId ? { 
-        ...r, 
-        files: r.files.filter(f => f.id !== fileId),
-        count: r.files.length - 1
-      } : r)
-    }));
-    // Update selectedReport if open
-    if (selectedReport && selectedReport.id === reportId) {
-      setSelectedReport(prev => prev ? ({
-        ...prev,
-        files: prev.files.filter(f => f.id !== fileId),
-        count: prev.files.length - 1
-      }) : null);
+  const deleteFileFromReport = async (reportId: string, fileId: string) => {
+    const report = data.reports.find(r => r.id === reportId);
+    if (!report) return;
+
+    try {
+      const updatedFiles = report.files.filter(f => f.id !== fileId);
+      await updateDoc(doc(db, 'reports', reportId), {
+        files: updatedFiles,
+        count: updatedFiles.length
+      });
+      if (selectedReport && selectedReport.id === reportId) {
+        setSelectedReport({ ...report, files: updatedFiles, count: updatedFiles.length });
+      }
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `reports/${reportId}`);
     }
   };
 
-  const addReport = () => {
+  const addReport = async () => {
     if (!newReport.title) return;
+    const id = Math.random().toString(36).substr(2, 9);
     const report: Report = {
-      id: Math.random().toString(36).substr(2, 9),
+      id,
       title: newReport.title,
       category: newReport.category || 'General',
       count: 0,
       date: new Date().toISOString().split('T')[0],
-      image: 'https://images.unsplash.com/photo-1524338198850-e966434a81ed?auto=format&fit=crop&q=80&w=800',
+      image: 'https://images.unsplash.com/photo-1564349683136-77e08bef1ed1?auto=format&fit=crop&q=40&w=800',
       files: []
     };
-    setData(prev => ({ ...prev, reports: [...prev.reports, report] }));
-    setShowReportForm(false);
-    setNewReport({ title: '', category: '', count: 0 });
+    try {
+      await setDoc(doc(db, 'reports', id), report);
+      setShowReportForm(false);
+      setNewReport({ title: '', category: '', count: 0 });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, 'reports');
+    }
   };
 
-  const deleteReport = (id: string) => {
-    setData(prev => ({ ...prev, reports: prev.reports.filter(r => r.id !== id) }));
+  const deleteReport = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'reports', id));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `reports/${id}`);
+    }
   };
 
-  const toggleEquipmentStatus = (id: string) => {
-    setData(prev => ({
-      ...prev,
-      equipment: prev.equipment.map(e => {
-        if (e.id === id) {
-          const newStatus = e.status === 'Available' ? 'In-use' : 'Available';
-          return { 
-            ...e, 
-            status: newStatus,
-            inUseCount: newStatus === 'In-use' ? Math.min(e.inUseCount + 1, e.totalQuantity) : Math.max(0, e.inUseCount - 1),
-            assignedTo: newStatus === 'Available' ? undefined : e.assignedTo || 'Staff Member',
-            checkoutDate: newStatus === 'In-use' ? new Date().toISOString().split('T')[0] : undefined,
-            expectedReturnDate: newStatus === 'In-use' ? e.expectedReturnDate || '' : undefined,
-          };
-        }
-        return e;
-      })
-    }));
+  const toggleEquipmentStatus = async (id: string) => {
+    const e = data.equipment.find(item => item.id === id);
+    if (!e) return;
+
+    try {
+      const newStatus = e.status === 'Available' ? 'In-use' : 'Available';
+      const updates = { 
+        status: newStatus,
+        inUseCount: newStatus === 'In-use' ? Math.min(e.inUseCount + 1, e.totalQuantity) : Math.max(0, e.inUseCount - 1),
+        assignedTo: newStatus === 'Available' ? null : e.assignedTo || user?.email || 'Staff Member',
+        checkoutDate: newStatus === 'In-use' ? new Date().toISOString().split('T')[0] : null,
+        expectedReturnDate: newStatus === 'In-use' ? e.expectedReturnDate || '' : null,
+      };
+      await updateDoc(doc(db, 'equipment', id), updates);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `equipment/${id}`);
+    }
   };
 
-  const updateEquipment = (id: string, updates: Partial<Equipment>) => {
-    setData(prev => ({
-      ...prev,
-      equipment: prev.equipment.map(e => e.id === id ? { ...e, ...updates } : e)
-    }));
+  const updateEquipment = async (id: string, updates: Partial<Equipment>) => {
+    try {
+      await updateDoc(doc(db, 'equipment', id), updates);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `equipment/${id}`);
+    }
   };
 
-  const addEquipment = (name: string, type: string, totalQuantity: number = 1) => {
+  const addEquipment = async (name: string, type: string, totalQuantity: number = 1) => {
+    const id = Math.random().toString(36).substr(2, 9);
     const newItem: Equipment = {
-      id: Math.random().toString(36).substr(2, 9),
+      id,
       name,
       type,
       status: 'Available',
       totalQuantity,
       inUseCount: 0
     };
-    setData(prev => ({ ...prev, equipment: [...prev.equipment, newItem] }));
+    try {
+      await setDoc(doc(db, 'equipment', id), newItem);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, 'equipment');
+    }
   };
 
   return (
     <div className="min-h-screen bg-sand selection:bg-emerald selection:text-sand overflow-x-hidden">
-      <Navbar isAdmin={isAdmin} onToggleAdmin={handleAdminToggle} userType={userType} />
+      <Navbar 
+        isAdmin={isAdmin} 
+        isRoot={isRoot}
+        user={user} 
+        onToggleAdmin={handleAdminToggle} 
+        userType={userType} 
+        pendingRequestsCount={data.pendingRequests.length}
+      />
       
       <main>
-        <Hero />
+        {user && !isAdmin && (
+          <div className="pt-24 px-6">
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-emerald/5 border border-emerald/10 p-4 rounded-2xl flex items-center justify-between max-w-6xl mx-auto"
+            >
+              <div className="flex items-center gap-3">
+                <UserPlus size={20} className="text-emerald" />
+                <p className="text-xs font-bold text-emerald-dark uppercase tracking-wide">
+                  Logged in as {user.email}. You do not have co-admin privileges.
+                </p>
+              </div>
+              <button 
+                onClick={handleRequestAccess}
+                className="bg-emerald text-sand px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-light transition-all"
+              >
+                Request Authorization
+              </button>
+            </motion.div>
+          </div>
+        )}
+        {managerStatus && (
+           <div className="pt-4 px-6">
+              <div className="bg-sand border border-emerald/20 p-4 rounded-xl max-w-6xl mx-auto flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald uppercase tracking-widest italic">{managerStatus}</span>
+                <button onClick={() => setManagerStatus(null)} className="text-emerald/40 hover:text-emerald"><X size={16} /></button>
+              </div>
+           </div>
+        )}
+        <Hero 
+          backgroundImage={(data as any).heroImage} 
+          isAdmin={isAdmin} 
+          isRoot={isRoot}
+          onImageChange={async (base64) => {
+            try {
+              await setDoc(doc(db, 'configs', 'main'), { heroImage: base64 }, { merge: true });
+            } catch (e) {
+              handleFirestoreError(e, OperationType.UPDATE, 'configs/main');
+            }
+          }}
+        />
 
         {/* Mission Story Videos Section */}
         <section className="max-w-6xl mx-auto px-6 mb-32 relative z-30">
@@ -556,7 +828,7 @@ export default function App() {
                 <div className="aspect-video rounded-[2.5rem] overflow-hidden bg-emerald-dark/5 shadow-2xl relative border border-emerald/5">
                   {/* Thumbnail background for slow internet persistence */}
                   <div className="absolute inset-0 z-0">
-                    <SafeImage src={video.thumbnail} alt={video.title} className="w-full h-full object-cover opacity-50" />
+                    <SafeImage src="https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800" alt={video.title} className="w-full h-full object-cover opacity-50" />
                   </div>
                   {showVideoAdmin ? (
                     <div className="absolute inset-0 bg-sand/95 backdrop-blur-sm z-20 p-6 flex flex-col justify-center space-y-4">
@@ -602,8 +874,11 @@ export default function App() {
         </section>
 
         {/* Strategic Priorities */}
-        <section className="max-w-6xl mx-auto px-6 mb-32">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <section className="max-w-6xl mx-auto px-6 mb-32 relative">
+          <div className="absolute top-0 -left-64 w-[600px] h-[600px] opacity-[0.03] pointer-events-none rounded-full overflow-hidden blur-[100px]">
+             <SafeImage src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=40&w=800" alt="" className="w-full h-full" />
+          </div>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 relative z-10">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-12 h-1 bg-emerald rounded-full"></div>
@@ -654,17 +929,27 @@ export default function App() {
                     <Trash2 size={16} />
                   </button>
                 )}
+                {isAdmin && (
+                  <label className="absolute top-4 left-4 z-20 p-2 bg-sand/90 backdrop-blur-sm text-emerald rounded-xl opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-lg hover:bg-emerald hover:text-sand">
+                    <ImageIcon size={16} />
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        handleFileUpload(e, (base64) => updateProject(project.id, { image: base64 }));
+                      }} 
+                    />
+                  </label>
+                )}
                 <div className="aspect-[4/3] overflow-hidden relative">
                   <SafeImage 
                     src={project.image} 
                     alt={project.name} 
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
-                    referrerPolicy="no-referrer"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                  <div className="absolute top-4 left-4">
-                    <ProgressRing progress={project.progress} />
-                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
                 </div>
                 <div className="p-8 flex flex-col h-[300px]">
                   <h4 className="font-serif text-2xl font-bold text-emerald-dark mb-3 tracking-tight line-clamp-1">{project.name}</h4>
@@ -675,7 +960,18 @@ export default function App() {
                       <div>
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-[9px] font-bold text-emerald/40 uppercase tracking-widest block">Financial Status</span>
-                          <span className="text-[10px] font-bold text-emerald">{project.progress}%</span>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={project.progress}
+                              onChange={(e) => updateProject(project.id, { progress: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                              className="w-12 bg-emerald/5 border border-emerald/10 text-emerald font-bold text-[10px] rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald text-center"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <span className="text-[10px] font-bold text-emerald">%</span>
+                          </div>
                         </div>
                         <input 
                           type="range"
@@ -704,9 +1000,41 @@ export default function App() {
             ))}
           </div>
 
+          {/* Biblical Thematic Quote Section */}
+          <div className="relative py-32 bg-emerald-dark/10 rounded-[3rem] overflow-hidden my-20 border border-emerald/10">
+            <div className="absolute inset-0">
+              <SafeImage 
+                src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=40&w=800" 
+                alt="Quote Background" 
+                className="w-full h-full object-cover opacity-20 scale-110"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-sand/80 via-transparent to-sand/80"></div>
+            </div>
+            <div className="relative z-10 max-w-3xl mx-auto px-6 text-center">
+               <motion.div
+                 initial={{ opacity: 0, y: 10 }}
+                 whileInView={{ opacity: 1, y: 0 }}
+                 viewport={{ once: true }}
+               >
+                  <div className="w-12 h-1 bg-emerald mx-auto mb-8 rounded-full"></div>
+                  <h3 className="font-serif text-3xl md:text-4xl font-bold text-emerald-dark leading-tight italic">
+                    "For the earth will be filled with the knowledge of the glory of the LORD as the waters cover the sea."
+                  </h3>
+                  <p className="text-emerald font-black uppercase tracking-[0.3em] text-[10px] mt-8">- Habakkuk 2:14 -</p>
+               </motion.div>
+            </div>
+          </div>
+
           {/* Project Schedule & Timeline Calendar */}
           <div className="bg-emerald-dark/5 rounded-[3rem] p-10 border border-emerald/10 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
+            <div className="absolute inset-0 z-0">
+              <SafeImage 
+                src="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=40&w=800" 
+                alt="Schedule Background" 
+                className="w-full h-full object-cover opacity-5"
+              />
+            </div>
+            <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none z-10">
               <Calendar size={200} className="text-emerald" />
             </div>
             
@@ -865,8 +1193,25 @@ export default function App() {
                              </div>
                              <p className="text-[10px] font-bold text-emerald/40 font-mono">{new Date(event.date).toLocaleDateString('en-GB')}</p>
                           </div>
-                          <h6 className="font-bold text-emerald-dark text-base mb-2 group-hover:text-emerald transition-colors">{event.title}</h6>
-                          <p className="text-xs text-emerald-dark/40 line-clamp-2 leading-relaxed">{event.description}</p>
+                          {isAdmin ? (
+                            <div className="mb-2">
+                              <input 
+                                value={event.title}
+                                onChange={(e) => updateDoc(doc(db, 'schedule', event.id), { title: e.target.value })}
+                                className="font-bold text-emerald-dark text-base block w-full bg-emerald/5 border-none p-1 rounded focus:ring-0"
+                              />
+                              <textarea 
+                                value={event.description}
+                                onChange={(e) => updateDoc(doc(db, 'schedule', event.id), { description: e.target.value })}
+                                className="text-xs text-emerald-dark/60 w-full bg-emerald/5 border-none p-1 rounded focus:ring-0 mt-1 resize-none h-12"
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <h6 className="font-bold text-emerald-dark text-base mb-2 group-hover:text-emerald transition-colors">{event.title}</h6>
+                              <p className="text-xs text-emerald-dark/40 line-clamp-2 leading-relaxed">{event.description}</p>
+                            </>
+                          )}
                           
                           <div className="mt-4 flex items-center justify-between">
                             <div className="flex -space-x-2">
@@ -912,7 +1257,14 @@ export default function App() {
         {/* Equipment & Asset Management Dashboard */}
         <section id="equipment-dashboard" className="max-w-6xl mx-auto px-6 mb-32">
           <div className="bg-white rounded-[3.5rem] p-10 md:p-16 border border-emerald/5 shadow-sm overflow-hidden relative">
-            <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
+            <div className="absolute inset-0 z-0">
+              <SafeImage 
+                src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&q=40&w=800" 
+                alt="Asset Background" 
+                className="w-full h-full object-cover opacity-5"
+              />
+            </div>
+            <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none z-10">
               <Package size={300} className="text-emerald" />
             </div>
             
@@ -1049,13 +1401,12 @@ export default function App() {
 
         {/* Report Archive Section */}
         <section className="relative bg-emerald-dark py-32 text-sand overflow-hidden">
-          {/* Authentic PNG Highlands Foggy Landscape Background */}
+          {/* Authentic PNG Hub Asset */}
           <div className="absolute inset-0 z-0">
             <SafeImage 
-              src="https://images.unsplash.com/photo-1524338198850-e966434a81ed?auto=format&fit=crop&q=80&w=2000" 
-              alt="PNG Highlands" 
+              src="https://images.unsplash.com/photo-1516062423079-7ca13cdc7f5a?auto=format&fit=crop&q=40&w=800" 
+              alt="Archive Background" 
               className="w-full h-full object-cover opacity-20"
-              referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-gradient-to-b from-emerald-dark via-emerald-dark/80 to-emerald-dark"></div>
           </div>
@@ -1098,17 +1449,30 @@ export default function App() {
                     src={item.image} 
                     alt={item.title} 
                     className="absolute inset-0 w-full h-full object-cover opacity-20 group-hover:opacity-40 transition-opacity duration-1000 scale-105 group-hover:scale-100"
-                    referrerPolicy="no-referrer"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-emerald-dark/95 via-emerald-dark/40 to-transparent"></div>
                   <div className="relative z-10 p-6 h-full flex flex-col justify-end">
                     {isAdmin && (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); deleteReport(item.id); }}
-                        className="absolute top-4 right-4 p-1.5 text-red-300 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white rounded-lg bg-emerald-dark/40"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      <div className="absolute top-4 right-4 flex gap-2">
+                        <label className="p-1.5 text-emerald-light bg-emerald-dark/40 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-light hover:text-emerald-dark rounded-lg cursor-pointer">
+                          <ImageIcon size={12} />
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            accept="image/*" 
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleFileUpload(e, (base64) => updateDoc(doc(db, 'reports', item.id), { image: base64 }));
+                            }} 
+                          />
+                        </label>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); deleteReport(item.id); }}
+                          className="p-1.5 text-red-300 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white rounded-lg bg-emerald-dark/40"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     )}
                     <div className="text-emerald-light mb-2 transform group-hover:scale-110 transition-transform origin-left">
                       {item.title.toLowerCase().includes('budget') || item.title.toLowerCase().includes('finance') ? <BarChart3 size={24}/> : <FileText size={24} />}
@@ -1174,21 +1538,45 @@ export default function App() {
         )}
         {/* Final Footer Component */}
         <footer className="bg-emerald-dark text-sand py-20 px-6 mt-20 relative overflow-hidden">
-          {/* Ukarumpa Base Background Overlay */}
+          {/* Papua New Guinea Visual Identity */}
           <div className="absolute inset-0 z-0">
             <SafeImage 
-              src="https://images.unsplash.com/photo-1523712999610-f77fbcfc3843?auto=format&fit=crop&q=80&w=1920"
-              alt="PNG Nature"
+              src={data.footerImage || "https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=40&w=1200"}
+              alt="Footer Background"
               className="w-full h-full object-cover opacity-10"
-              referrerPolicy="no-referrer"
             />
+            {isAdmin && (
+              <label className="absolute top-6 right-6 z-50 bg-sand/80 backdrop-blur-md p-2 rounded-xl border border-emerald/10 cursor-pointer hover:bg-emerald hover:text-sand transition-all shadow-xl group">
+                <ImageIcon size={16} className="group-hover:scale-110 transition-transform" />
+                <span className="hidden group-hover:block absolute right-10 top-1 bg-emerald text-sand px-3 py-1 rounded-lg text-[8px] font-bold whitespace-nowrap uppercase tracking-widest">Change Footer Image</span>
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={(e) => handleFileUpload(e, async (base64) => {
+                    try {
+                      await setDoc(doc(db, 'configs', 'main'), { footerImage: base64 }, { merge: true });
+                    } catch (err) {
+                      handleFirestoreError(err, OperationType.UPDATE, 'configs/main');
+                    }
+                  })} 
+                />
+              </label>
+            )}
           </div>
           <div className="absolute top-0 left-0 w-full h-1 bg-emerald-light"></div>
           <div className="max-w-6xl mx-auto relative z-10">
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
               <div className="col-span-1 lg:col-span-2">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-emerald rounded-full flex items-center justify-center text-sand font-serif font-bold text-xl">S</div>
+                  <div className="w-10 h-10 bg-emerald rounded-full flex items-center justify-center text-sand font-serif font-bold text-xl relative overflow-hidden">
+                    <SafeImage 
+                      src="https://images.unsplash.com/photo-1523733566457-60437fc0582d?auto=format&fit=crop&q=40&w=800" 
+                      alt="Footer Logo bg" 
+                      className="absolute inset-0 w-full h-full object-cover opacity-40"
+                    />
+                    <span className="relative z-10">S</span>
+                  </div>
                   <h3 className="font-serif text-2xl font-bold tracking-tight uppercase">Scripture Access PNG</h3>
                 </div>
                 <p className="text-sand/60 max-w-md text-sm leading-relaxed mb-6">
@@ -1271,13 +1659,28 @@ export default function App() {
                 <X size={24} />
               </button>
 
-              <div className="w-full md:w-2/5 relative h-64 md:h-full">
-                <SafeImage 
-                  src={selectedProject.image} 
-                  alt={selectedProject.name} 
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
+              <div className="w-full md:w-2/5 relative h-64 md:h-full group">
+                <div className="absolute inset-0">
+                  <SafeImage 
+                    src={selectedProject.image} 
+                    alt={selectedProject.name} 
+                    className="w-full h-full object-cover"
+                  />
+                  {isAdmin && (
+                    <label className="absolute inset-0 flex items-center justify-center bg-emerald-dark/40 opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                      <div className="bg-sand text-emerald px-6 py-3 rounded-2xl flex items-center gap-3 shadow-2xl scale-95 hover:scale-100 transition-transform">
+                        <FileUp size={24} />
+                        <span className="text-xs font-black uppercase tracking-widest">Replace Illustration</span>
+                      </div>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={(e) => handleFileUpload(e, (base64) => updateProject(selectedProject.id, { image: base64 }))} 
+                      />
+                    </label>
+                  )}
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent to-sand md:hidden"></div>
               </div>
 
@@ -1395,19 +1798,47 @@ export default function App() {
               exit={{ scale: 0.95, opacity: 0, y: 30 }}
               className="bg-sand rounded-[3.5rem] overflow-hidden max-w-2xl w-full relative z-10 shadow-2xl flex flex-col max-h-[80vh]"
             >
-              <div className="p-10 border-b border-emerald/10 flex justify-between items-center bg-sand/50 backdrop-blur-sm sticky top-0 z-20">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-emerald/10 rounded-2xl text-emerald">
+              <div className="p-10 border-b border-emerald/10 flex justify-between items-center bg-sand/50 backdrop-blur-sm sticky top-0 z-20 overflow-hidden">
+                <SafeImage 
+                  src={selectedReport.image} 
+                  alt={selectedReport.title} 
+                  className="absolute inset-0 w-full h-full object-cover opacity-5"
+                />
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="p-3 bg-emerald/10 rounded-2xl text-emerald relative">
                     <FileText size={24} />
+                    {isAdmin && (
+                      <label className="absolute -bottom-2 -right-2 bg-white p-1.5 rounded-full shadow-md cursor-pointer hover:bg-emerald hover:text-sand transition-all">
+                        <ImageIcon size={12} />
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*" 
+                          onChange={(e) => handleFileUpload(e, (base64) => updateDoc(doc(db, 'reports', selectedReport.id), { image: base64 }))} 
+                        />
+                      </label>
+                    )}
                   </div>
                   <div>
-                    <h3 className="font-serif text-3xl font-bold text-emerald-dark tracking-tight">{selectedReport.title}</h3>
+                    {isAdmin ? (
+                      <input 
+                        value={selectedReport.title}
+                        onChange={async (e) => {
+                          const newTitle = e.target.value;
+                          await updateDoc(doc(db, 'reports', selectedReport.id), { title: newTitle });
+                          setSelectedReport({ ...selectedReport, title: newTitle });
+                        }}
+                        className="font-serif text-3xl font-bold text-emerald-dark tracking-tight bg-emerald/5 border-b border-emerald/20 focus:outline-none"
+                      />
+                    ) : (
+                      <h3 className="font-serif text-3xl font-bold text-emerald-dark tracking-tight">{selectedReport.title}</h3>
+                    )}
                     <p className="text-[10px] font-bold text-emerald/40 uppercase tracking-widest">{selectedReport.files?.length || 0} Documents Logged</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setShowReportFilesModal(false)}
-                  className="p-3 text-emerald/40 hover:text-emerald transition-colors"
+                  className="p-3 text-emerald/40 hover:text-emerald transition-colors relative z-10"
                 >
                   <X size={28} />
                 </button>
@@ -1685,11 +2116,23 @@ export default function App() {
               </button>
               <div className="relative h-64">
                 <SafeImage 
-                  src="https://images.unsplash.com/photo-1542332213-9b5a5a3fab35?auto=format&fit=crop&q=80&w=800" 
+                  src={(data as any).managerMessageImage || "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=40&w=800"} 
                   alt="PNG Nature" 
                   className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
                 />
+                {isAdmin && (
+                  <label className="absolute top-4 right-4 bg-sand/80 p-2 rounded-xl cursor-pointer hover:bg-emerald hover:text-sand transition-all">
+                    <ImageIcon size={16} />
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={(e) => handleFileUpload(e, async (base64) => {
+                        await setDoc(doc(db, 'configs', 'main'), { managerMessageImage: base64 }, { merge: true });
+                      })} 
+                    />
+                  </label>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-sand via-transparent to-transparent"></div>
               </div>
               <div className="p-10 text-center">
@@ -1710,74 +2153,164 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Admin Login Modal */}
+      {/* Admin Management Modal */}
       <AnimatePresence>
-        {showAdminLogin && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
-            <div className="absolute inset-0 bg-emerald-dark/80 backdrop-blur-sm" onClick={() => setShowAdminLogin(false)}></div>
+        {showAdminManagement && isRoot && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-6">
+            <div className="absolute inset-0 bg-emerald-dark/90 backdrop-blur-md" onClick={() => setShowAdminManagement(false)}></div>
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-sand p-10 rounded-[2.5rem] max-w-md w-full relative z-10 shadow-2xl border border-emerald/10"
+              className="bg-sand p-10 rounded-[3rem] max-w-2xl w-full relative z-10 shadow-3xl border border-emerald/10 max-h-[85vh] overflow-y-auto"
             >
               <button 
-                onClick={() => setShowAdminLogin(false)}
-                className="absolute top-6 right-6 p-2 text-emerald/40 hover:text-emerald transition-colors"
+                onClick={() => setShowAdminManagement(false)}
+                className="absolute top-8 right-8 p-2 text-emerald/40 hover:text-emerald transition-colors"
+                id="close-admin-mgmt"
               >
                 <X size={24} />
               </button>
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-emerald/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <ShieldCheck size={32} className="text-emerald" />
-                </div>
-                <h3 className="font-serif text-3xl font-bold text-emerald-dark">Admin Access</h3>
-                <p className="text-emerald/60 text-sm mt-2">Enter your authorized email to continue.</p>
+              
+              <div className="mb-10">
+                <h3 className="font-serif text-4xl font-bold text-emerald-dark mb-2">Management Console</h3>
+                <p className="text-emerald/60 text-sm font-medium">Authorizing mission partners & governing hub content.</p>
               </div>
-              <div className="space-y-4">
-                {managerStatus && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`p-4 rounded-xl text-center text-xs font-bold uppercase tracking-widest ${
-                      managerStatus.includes('Denied') || managerStatus.includes('already') 
-                        ? 'bg-red-50 text-red-600 border border-red-100' 
-                        : 'bg-emerald/5 text-emerald border border-emerald/10'
-                    }`}
+
+              {/* Direct Add Admin */}
+              <div className="mb-12 bg-white p-6 rounded-3xl border border-emerald/10 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <UserPlus size={18} className="text-emerald" />
+                  <h4 className="text-xs uppercase font-black tracking-[0.2em] text-emerald-dark/40">Direct Authorize</h4>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    type="email"
+                    placeholder="Enter partner email (e.g. partner@gbt.or.kr)"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    className="flex-1 bg-emerald/5 border-none p-4 rounded-xl text-sm focus:ring-2 focus:ring-emerald/20 transition-all font-bold"
+                  />
+                  <button 
+                    onClick={() => {
+                      grantDirectAccess(emailInput);
+                      setEmailInput('');
+                    }}
+                    className="bg-emerald text-sand px-6 py-4 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-light transition-all shadow-lg shadow-emerald/10"
                   >
-                    {managerStatus}
-                  </motion.div>
+                    Grant Access
+                  </button>
+                </div>
+              </div>
+
+              {/* Pending Requests */}
+              <div className="mb-12">
+                <div className="flex items-center gap-2 mb-6 border-b border-emerald/10 pb-2">
+                  <Mail size={18} className="text-emerald" />
+                  <h4 className="text-xs uppercase font-black tracking-[0.2em] text-emerald-dark/40">Open Requests</h4>
+                </div>
+                {data.pendingRequests.length === 0 ? (
+                  <div className="bg-emerald/5 rounded-2xl p-8 text-center border border-dashed border-emerald/20">
+                    <p className="text-xs font-bold text-emerald/30 uppercase tracking-widest">No pending requests</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {data.pendingRequests.map((request) => (
+                      <div key={request.id} className="bg-white p-5 rounded-2xl border border-emerald/5 flex items-center justify-between shadow-sm">
+                        <div>
+                          <p className="text-sm font-bold text-emerald-dark">{request.email}</p>
+                          <p className="text-[10px] text-emerald/40 font-medium">Requested: {new Date(request.timestamp).toLocaleString()}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => approveRequest(request)}
+                            className="bg-emerald text-sand px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-light transition-all flex items-center gap-2"
+                          >
+                            <Check size={14} /> Approve
+                          </button>
+                          <button 
+                            onClick={() => deleteRequest(request.id)}
+                            className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all"
+                          >
+                            Deny
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-emerald/40 mb-2 tracking-[0.2em]">Authorized Email</label>
-                  <div className="relative">
-                    <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald/20" />
-                    <input 
-                      type="email" 
-                      value={emailInput}
-                      onChange={(e) => setEmailInput(e.target.value)}
-                      placeholder="e.g. manager@sil.org.pg"
-                      className="w-full bg-emerald/5 border border-emerald/10 px-12 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald/20 font-medium text-emerald-dark"
-                    />
+              </div>
+
+              {/* Authorized Admins */}
+              <div>
+                <div className="flex items-center gap-2 mb-6 border-b border-emerald/10 pb-2">
+                  <ShieldCheck size={18} className="text-emerald" />
+                  <h4 className="text-xs uppercase font-black tracking-[0.2em] text-emerald-dark/40">Authorized Co-Admins</h4>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <div className="bg-emerald text-sand px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald/20 border border-emerald/20">
+                    <Star size={12} fill="currentColor" />
+                    <span className="text-xs font-bold">{ROOT_ADMIN}</span>
+                  </div>
+                  {data.authorizedCoAdmins.filter(e => e.toLowerCase() !== ROOT_ADMIN.toLowerCase()).map((email) => (
+                    <div key={email} className="bg-emerald/10 px-4 py-2 rounded-xl flex items-center gap-3 border border-emerald/10 group">
+                      <span className="text-xs font-bold text-emerald">{email}</span>
+                      <button 
+                        onClick={() => revokeAdmin(email)}
+                        className="text-emerald/40 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* System Actions */}
+              <div className="mt-12 pt-8 border-t border-emerald/10">
+                <h4 className="text-xs uppercase font-black tracking-[0.2em] text-emerald-dark/40 mb-6 flex items-center gap-2">
+                  <Database size={16} /> Data Synchronization
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-6 bg-emerald/5 rounded-3xl border border-emerald/10">
+                    <p className="text-[10px] uppercase font-black text-emerald mb-2">Project Media Sync</p>
+                    <p className="text-[11px] text-emerald-dark/60 mb-4 font-medium leading-relaxed">
+                      Matches live project images with the latest PNG mission illustrations from the central library.
+                    </p>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          setManagerStatus("Coordinating with PNG Hub...");
+                          const trauma = data.projects.find(p => p.id === 'trauma');
+                          const cms = data.projects.find(p => p.id === 'cms');
+                          const salt = data.projects.find(p => p.id === 'salt');
+                          const bible = data.projects.find(p => p.id === 'bible-overview');
+                          
+                          if (trauma) await updateProject('trauma', { image: INITIAL_DATA.projects.find(p => p.id === 'trauma')!.image });
+                          if (cms) await updateProject('cms', { image: INITIAL_DATA.projects.find(p => p.id === 'cms')!.image });
+                          if (salt) await updateProject('salt', { image: INITIAL_DATA.projects.find(p => p.id === 'salt')!.image });
+                          if (bible) await updateProject('bible-overview', { image: INITIAL_DATA.projects.find(p => p.id === 'bible-overview')!.image });
+                          
+                          // Sync Reports
+                          for (const rep of INITIAL_DATA.reports) {
+                            const existing = data.reports.find(r => r.id === rep.id);
+                            if (existing) await updateDoc(doc(db, 'reports', existing.id), { image: rep.image });
+                          }
+
+                          // Sync Hero with Lush Jungle
+                          await setDoc(doc(db, 'configs', 'main'), { heroImage: 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=40&w=1200' }, { merge: true });
+                          
+                          setManagerStatus("Mission Resources & Cultural Assets synchronized successfully.");
+                        } catch (e) {
+                          setManagerStatus("Sync failed. Check your connection to the PNG Hub.");
+                        }
+                      }}
+                      className="bg-emerald text-sand px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-light transition-all flex items-center gap-2"
+                    >
+                      <RefreshCw size={14} /> Sync Cultural Assets
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-3">
-                  <button 
-                    onClick={handleLogin}
-                    className="flex-1 bg-emerald text-sand py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-emerald-light transition-all shadow-lg shadow-emerald/10"
-                  >
-                    Login
-                  </button>
-                  <button 
-                    onClick={handleRequestAccess}
-                    className="flex-1 bg-emerald/10 text-emerald py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-emerald/20 transition-all"
-                  >
-                    Request Access
-                  </button>
-                </div>
-                <p className="text-[10px] text-center text-emerald/30 font-medium px-4 mt-4">
-                  By logging in, you agree to our internal safety and transparency protocols.
-                </p>
               </div>
             </motion.div>
           </div>
@@ -2036,11 +2569,17 @@ export default function App() {
                       <div key={email} className="bg-emerald/10 px-4 py-2 rounded-xl flex items-center gap-3">
                         <span className="text-xs font-bold text-emerald">{email}</span>
                         <button 
-                          onClick={() => {
-                            setData(prev => ({
-                              ...prev,
-                              authorizedCoAdmins: prev.authorizedCoAdmins.filter(e => e !== email)
-                            }));
+                          onClick={async () => {
+                            try {
+                              // We need to find the document with this email and delete it
+                              const adminQuery = query(collection(db, 'admins'), where('email', '==', email));
+                              const adminSnap = await getDocs(adminQuery);
+                              adminSnap.forEach(async (adminDoc) => {
+                                await deleteDoc(doc(db, 'admins', adminDoc.id));
+                              });
+                            } catch (e) {
+                              handleFirestoreError(e, OperationType.DELETE, 'admins');
+                            }
                           }}
                           className="text-emerald/40 hover:text-red-500 transition-colors"
                         >

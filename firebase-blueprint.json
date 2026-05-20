@@ -1,0 +1,143 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "A mission project in PNG",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "progress": { "type": "number" },
+        "lastStatus": { "type": "string" },
+        "image": { "type": "string" },
+        "howToSupport": { "type": "string" }
+      },
+      "required": ["id", "name", "description", "progress", "lastStatus", "image"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Monthly or strategic reports",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "count": { "type": "number" },
+        "category": { "type": "string" },
+        "date": { "type": "string" },
+        "image": { "type": "string" },
+        "files": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      },
+      "required": ["id", "title", "count", "category", "date", "image"]
+    },
+    "Equipment": {
+      "title": "Equipment",
+      "description": "Mission asset for checkout",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string", "enum": ["Available", "In-use"] },
+        "totalQuantity": { "type": "number" },
+        "inUseCount": { "type": "number" },
+        "assignedTo": { "type": "string" },
+        "checkoutDate": { "type": "string" },
+        "expectedReturnDate": { "type": "string" }
+      },
+      "required": ["id", "name", "type", "status", "totalQuantity", "inUseCount"]
+    },
+    "ScheduleEvent": {
+      "title": "ScheduleEvent",
+      "description": "Event on the project calendar",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "type": { "type": "string", "enum": ["milestone", "deadline", "meeting", "workshop"] },
+        "description": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "title", "date", "type"]
+    },
+    "Video": {
+      "title": "Video",
+      "description": "Promotional or informational video",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "thumbnail": { "type": "string" }
+      },
+      "required": ["id", "title", "url", "thumbnail"]
+    },
+    "AdminRequest": {
+      "title": "AdminRequest",
+      "description": "Request for co-admin privileges",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] }
+      },
+      "required": ["id", "email", "timestamp", "status"]
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "description": "Global application settings and images",
+      "type": "object",
+      "properties": {
+        "heroImage": { "type": "string" },
+        "managerMessageImage": { "type": "string" },
+        "footer": { 
+          "type": "object",
+          "properties": {
+            "email": { "type": "string" },
+            "phone": { "type": "string" },
+            "location": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "projects": {
+      "schema": "Project",
+      "description": "Collection of mission projects"
+    },
+    "reports": {
+      "schema": "Report",
+      "description": "Collection of reports and archives"
+    },
+    "equipment": {
+      "schema": "Equipment",
+      "description": "Inventory of mission equipment"
+    },
+    "schedule": {
+      "schema": "ScheduleEvent",
+      "description": "Project milestones and calendar events"
+    },
+    "videos": {
+      "schema": "Video",
+      "description": "Video gallery"
+    },
+    "admin_requests": {
+      "schema": "AdminRequest",
+      "description": "Pending requests for admin access"
+    },
+    "configs": {
+      "schema": "AppConfig",
+      "description": "Singleton config document (ID: main)"
+    },
+    "admins": {
+      "schema": { "type": "object", "properties": { "email": { "type": "string" } } },
+      "description": "List of authorized admin UIDs"
+    }
+  }
+}
