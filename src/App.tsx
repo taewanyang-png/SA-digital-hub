@@ -43,6 +43,8 @@ import {
 import { AppData, Equipment, Project, Report, AdminRequest, AppFile, VideoBlock, ScheduleEvent } from './types';
 import { INITIAL_DATA } from './constants';
 import { EnglishDatePicker } from './components/EnglishDatePicker';
+import heroVillageImage from './assets/images/hero_village_1779439866194.png';
+import cowhideLeatherImage from './assets/images/cowhide_leather_1779499036262.png';
 import { auth, db, signInWithGoogle, handleFirestoreError, OperationType } from './lib/firebase';
 import { 
   collection, 
@@ -79,7 +81,7 @@ const Navbar = ({ isAdmin, isRoot, user, onToggleAdmin, userType, pendingRequest
         {isAdmin && onLogoChange ? (
           <label className="absolute inset-0 w-full h-full cursor-pointer z-20 group">
             <SafeImage 
-              src={logoImage || "https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120"} 
+              src={logoImage || cowhideLeatherImage} 
               alt="Bible Background" 
               className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-125 transition-transform"
             />
@@ -95,7 +97,7 @@ const Navbar = ({ isAdmin, isRoot, user, onToggleAdmin, userType, pendingRequest
           </label>
         ) : (
           <SafeImage 
-            src={logoImage || "https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120"} 
+            src={logoImage || cowhideLeatherImage} 
             alt="Bible Background" 
             className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-125 transition-transform"
           />
@@ -315,7 +317,7 @@ const Hero = ({ backgroundImage, isAdmin, isRoot, onImageChange }: { backgroundI
   <section 
     className="relative h-screen flex flex-col justify-center items-center overflow-hidden bg-black"
     style={{ 
-      backgroundImage: `url('${backgroundImage || 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=15&w=600'}')`, 
+      backgroundImage: `url('${backgroundImage || heroVillageImage}')`, 
       backgroundSize: 'cover', 
       backgroundPosition: 'center',
       imageRendering: 'auto'
@@ -657,10 +659,10 @@ export default function App() {
         const configDoc = await getDoc(doc(db, 'configs', 'main'));
         if (!configDoc.exists()) {
           await setDoc(doc(db, 'configs', 'main'), {
-            heroImage: 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=15&w=600',
+            heroImage: heroVillageImage,
             managerMessageImage: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=12&w=350',
             footerImage: 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=15&w=600',
-            logoImage: 'https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120',
+            logoImage: cowhideLeatherImage,
             managerTitle: 'Transforming Lives Through Access',
             managerMessage: 'Welcome to our new digital hub. This platform represents our commitment to transparency and efficiency as we bring the Word of God to every corner of PNG. Thank you for your continued support in our strategic priorities.',
             footer: INITIAL_DATA.footer,
@@ -702,13 +704,23 @@ export default function App() {
     const unsubConfig = onSnapshot(doc(db, 'configs', 'main'), (snap) => {
       if (snap.exists()) {
         const config = snap.data();
+        let currentHeroImage = config.heroImage;
+        if (!currentHeroImage || (typeof currentHeroImage === 'string' && currentHeroImage.includes('unsplash.com'))) {
+          currentHeroImage = heroVillageImage;
+          setDoc(doc(db, 'configs', 'main'), { heroImage: heroVillageImage }, { merge: true }).catch(console.error);
+        }
+        let currentLogoImage = config.logoImage;
+        if (!currentLogoImage || (typeof currentLogoImage === 'string' && currentLogoImage.includes('unsplash.com'))) {
+          currentLogoImage = cowhideLeatherImage;
+          setDoc(doc(db, 'configs', 'main'), { logoImage: cowhideLeatherImage }, { merge: true }).catch(console.error);
+        }
         setData(prev => ({ 
           ...prev, 
           footer: config.footer || prev.footer,
-          heroImage: config.heroImage,
+          heroImage: currentHeroImage,
           managerMessageImage: config.managerMessageImage,
           footerImage: config.footerImage,
-          logoImage: config.logoImage || prev.logoImage,
+          logoImage: currentLogoImage || prev.logoImage,
           managerTitle: config.managerTitle,
           managerMessage: config.managerMessage,
           quoteText: config.quoteText,
@@ -2015,7 +2027,7 @@ export default function App() {
                     {isAdmin ? (
                       <label className="absolute inset-0 w-full h-full cursor-pointer z-20 group">
                         <SafeImage 
-                          src={data.logoImage || "https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120"} 
+                          src={data.logoImage || cowhideLeatherImage} 
                           alt="Footer Logo bg" 
                           className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-125 transition-transform"
                         />
@@ -2037,7 +2049,7 @@ export default function App() {
                       </label>
                     ) : (
                       <SafeImage 
-                        src={data.logoImage || "https://images.unsplash.com/photo-1504052434569-7090ec98a3c0?auto=format&fit=crop&q=10&w=120"} 
+                        src={data.logoImage || cowhideLeatherImage} 
                         alt="Footer Logo bg" 
                         className="absolute inset-0 w-full h-full object-cover opacity-85"
                       />
@@ -2996,7 +3008,7 @@ export default function App() {
                           }
 
                           // Sync Hero with Lush Jungle
-                          await setDoc(doc(db, 'configs', 'main'), { heroImage: 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=15&w=600' }, { merge: true });
+                          await setDoc(doc(db, 'configs', 'main'), { heroImage: heroVillageImage }, { merge: true });
                           
                           setManagerStatus("Mission Resources & Cultural Assets synchronized successfully.");
                         } catch (e) {
