@@ -45,6 +45,7 @@ import { INITIAL_DATA } from './constants';
 import { EnglishDatePicker } from './components/EnglishDatePicker';
 import heroVillageImage from './assets/images/hero_village_1779439866194.png';
 import cowhideLeatherImage from './assets/images/cowhide_leather_1779499036262.png';
+import premiumLeatherImage from './assets/images/premium_leather_1779665841654.png';
 import { auth, db, signInWithGoogle, handleFirestoreError, OperationType } from './lib/firebase';
 import { 
   collection, 
@@ -77,13 +78,13 @@ const Navbar = ({ isAdmin, isRoot, user, onToggleAdmin, userType, pendingRequest
 }) => (
   <nav className="fixed top-0 w-full z-[100] bg-sand/80 backdrop-blur-md border-b border-emerald/10 px-6 py-4 flex justify-between items-center">
     <div className="flex items-center gap-3">
-      <div className="w-10 h-10 bg-[#fbf9f4] rounded-full flex items-center justify-center border border-emerald/20 font-serif font-bold text-xl relative overflow-hidden group shadow-md shadow-emerald/5">
+      <div className="w-10 h-10 bg-[#2a1b0c] rounded-full flex items-center justify-center border border-emerald/20 font-serif font-bold text-xl relative overflow-hidden group shadow-md shadow-emerald/5">
         {isAdmin && onLogoChange ? (
           <label className="absolute inset-0 w-full h-full cursor-pointer z-20 group">
             <SafeImage 
-              src={logoImage || cowhideLeatherImage} 
+              src={(logoImage && logoImage.startsWith('data:')) ? logoImage : premiumLeatherImage} 
               alt="Bible Background" 
-              className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-125 transition-transform"
+              className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-125 transition-transform"
             />
             <div className="absolute inset-0 bg-emerald/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-30">
               <span className="text-[8px] font-bold text-white bg-emerald-dark/80 px-1 py-0.5 rounded scale-75">EDIT</span>
@@ -97,14 +98,14 @@ const Navbar = ({ isAdmin, isRoot, user, onToggleAdmin, userType, pendingRequest
           </label>
         ) : (
           <SafeImage 
-            src={logoImage || cowhideLeatherImage} 
+            src={(logoImage && logoImage.startsWith('data:')) ? logoImage : premiumLeatherImage} 
             alt="Bible Background" 
-            className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-125 transition-transform"
+            className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-125 transition-transform"
           />
         )}
-        <div className="relative z-10 flex items-center justify-center drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)] pointer-events-none">
-          <span className="text-emerald-dark drop-shadow-sm text-sm absolute -top-[2px] font-black tracking-tighter">S</span>
-          <BookOpen size={14} className="text-emerald-dark/90 mt-3 font-bold" />
+        <div className="relative z-10 flex flex-col items-center justify-center pt-2 pointer-events-none">
+          <span className="text-[#fefbf6] font-serif font-black tracking-tighter text-[11px] leading-none drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)]">SA</span>
+          <BookOpen size={14} className="text-[#fefbf6]/90 -mt-0.5 font-bold drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)]" />
         </div>
       </div>
       <div>
@@ -662,7 +663,7 @@ export default function App() {
             heroImage: heroVillageImage,
             managerMessageImage: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&q=12&w=350',
             footerImage: 'https://images.unsplash.com/photo-1536431311719-398b61de7dbe?auto=format&fit=crop&q=15&w=600',
-            logoImage: cowhideLeatherImage,
+            logoImage: premiumLeatherImage,
             managerTitle: 'Transforming Lives Through Access',
             managerMessage: 'Welcome to our new digital hub. This platform represents our commitment to transparency and efficiency as we bring the Word of God to every corner of PNG. Thank you for your continued support in our strategic priorities.',
             footer: INITIAL_DATA.footer,
@@ -710,9 +711,9 @@ export default function App() {
           setDoc(doc(db, 'configs', 'main'), { heroImage: heroVillageImage }, { merge: true }).catch(console.error);
         }
         let currentLogoImage = config.logoImage;
-        if (!currentLogoImage || (typeof currentLogoImage === 'string' && currentLogoImage.includes('unsplash.com'))) {
-          currentLogoImage = cowhideLeatherImage;
-          setDoc(doc(db, 'configs', 'main'), { logoImage: cowhideLeatherImage }, { merge: true }).catch(console.error);
+        if (!currentLogoImage || (typeof currentLogoImage === 'string' && (currentLogoImage.includes('unsplash.com') || currentLogoImage.includes('cowhide_leather')))) {
+          currentLogoImage = premiumLeatherImage;
+          setDoc(doc(db, 'configs', 'main'), { logoImage: premiumLeatherImage }, { merge: true }).catch(console.error);
         }
         setData(prev => ({ 
           ...prev, 
@@ -2023,13 +2024,13 @@ export default function App() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
               <div className="col-span-1 lg:col-span-2">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-[#fbf9f4] rounded-full flex items-center justify-center border border-emerald/20 font-serif font-bold text-xl relative overflow-hidden shadow-md shadow-emerald/5">
+                  <div className="w-10 h-10 bg-[#2a1b0c] rounded-full flex items-center justify-center border border-emerald/20 font-serif font-bold text-xl relative overflow-hidden shadow-md shadow-emerald/5">
                     {isAdmin ? (
                       <label className="absolute inset-0 w-full h-full cursor-pointer z-20 group">
                         <SafeImage 
-                          src={data.logoImage || cowhideLeatherImage} 
+                          src={(data.logoImage && data.logoImage.startsWith('data:')) ? data.logoImage : premiumLeatherImage} 
                           alt="Footer Logo bg" 
-                          className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-125 transition-transform"
+                          className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:scale-125 transition-transform"
                         />
                         <div className="absolute inset-0 bg-emerald/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-30">
                           <span className="text-[8px] font-bold text-white bg-emerald-dark/80 px-1 py-0.5 rounded scale-75">EDIT</span>
@@ -2049,14 +2050,14 @@ export default function App() {
                       </label>
                     ) : (
                       <SafeImage 
-                        src={data.logoImage || cowhideLeatherImage} 
+                        src={(data.logoImage && data.logoImage.startsWith('data:')) ? data.logoImage : premiumLeatherImage} 
                         alt="Footer Logo bg" 
-                        className="absolute inset-0 w-full h-full object-cover opacity-85"
+                        className="absolute inset-0 w-full h-full object-cover opacity-90"
                       />
                     )}
-                    <div className="relative z-10 flex items-center justify-center drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)] pointer-events-none">
-                      <span className="text-emerald-dark text-sm absolute -top-[2px] font-black tracking-tighter">S</span>
-                      <BookOpen size={14} className="text-emerald-dark/90 mt-3 font-bold" />
+                    <div className="relative z-10 flex flex-col items-center justify-center pt-2 pointer-events-none">
+                      <span className="text-[#fefbf6] font-serif font-black tracking-tighter text-[11px] leading-none drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)]">SA</span>
+                      <BookOpen size={14} className="text-[#fefbf6]/90 -mt-0.5 font-bold drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)]" />
                     </div>
                   </div>
                   <h3 className="font-serif text-2xl font-bold tracking-tight uppercase">Scripture Access PNG</h3>
